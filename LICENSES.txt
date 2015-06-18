@@ -1,6 +1,6 @@
 The software and its source code is licensed under GNU GPLv3
 
-The original sounds were acqiured from freesound.org and their authorship belongs to:
+The original sounds were acquired from freesound.org and their authorship belongs to:
 grunt sounds:	user cormi
 heart beat sounds:  user thenudo
 breath sounds:  user bevangoldswain
