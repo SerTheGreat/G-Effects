@@ -16,7 +16,7 @@ Pilots are more trained than others, of course.
 
 G forces have different severity in four directions: upward, downward, backward, forward, so you may find that a kerbal launched in a rocket stands more G than
 a kerbal piloting a plane upside down on a circular trajectory.
-Kerbal's traits also affect how much he can stand.
+Kerbal's specialization also affects how much he can stand.
 
 **Installation:**
 

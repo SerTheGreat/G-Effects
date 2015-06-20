@@ -35,7 +35,7 @@ namespace G_Effects
 		
 		//Kerbal personal modifiers are used as multipliers for the gResistance parameter and also affect the speed of G effects accumulation  
 		public float femaleModifier = 1; //How stronger are females than males
-		//Modifiers by traits:
+		//Modifiers by specialization traits:
 		public  Dictionary<string, float> traitModifiers = new Dictionary<string, float>() {
 			{"Pilot", 1.3f}, {"Engineer", 1.0f}, {"Scientist", 1.0f}, {"Tourist", 0.6f}
 		};

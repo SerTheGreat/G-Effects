@@ -47,6 +47,11 @@ namespace G_Effects
 		Configuration conf = new Configuration();
 		GEffectsAudio gAudio = new GEffectsAudio();
 		
+		//Specialization priority to be a commander
+		Dictionary<string, int> priorities = new Dictionary<string, int>() {
+			{"pilot", 3}, {"engineer", 2}, {"scientist", 2}, {"tourist", 0}
+		};
+		
 		//This is for G effects persistance
 		public Dictionary<string, KerbalGData> kerbalGDict = new Dictionary<string, KerbalGData>();
 		
@@ -89,7 +94,7 @@ namespace G_Effects
 		
 		void resetValues() {
 			commander = null;
-			kerbalGDict.Clear(); //kerbalGDict is for persistance, actually, but if not cleared the G effects on crew will be "frozen" on switch out/in vessel
+			kerbalGDict.Clear(); //kerbalGDict is for persistance actually but if not cleared the G effects on crew will be "frozen" on switch out/in vessel
 			InputLockManager.RemoveControlLock(CONTROL_LOCK_ID);
 		}
 		
@@ -111,8 +116,11 @@ namespace G_Effects
 			Vessel vessel = FlightGlobals.ActiveVessel;
 			Part referencePart = vessel.GetReferenceTransformPart();
 			
-			//Return without any effect if the vessel isn't controlled by any crew
-			if ((referencePart.CrewCapacity == 0) || (referencePart.protoModuleCrew.Count == 0)) {
+			commander = null; //the commander is recalculated every update
+			playEffects = false; //this changes to true later if all neccessary conditions are met
+			
+			//Return without any effect if the vessel hasn't any crew
+			if ((vessel.GetCrewCount() == 0)) {
 				return;
 			}
 			
@@ -120,24 +128,22 @@ namespace G_Effects
 				gAudio.bindToTransform(FlightCamera.fetch.mainCamera.transform);
 			}
 			
-			//Find a crew member that most likely is controlling the vessel. So he is the one who sees the effects.
-			foreach (ProtoCrewMember crewMember in referencePart.protoModuleCrew) {
-				if (crewMember.experienceTrait.Title.ToLower().Equals("pilot")) {
-					commander = crewMember;
-					break;
+			if (referencePart.CrewCapacity > 0) { //otherwise the vessel is controlled via probe core
+				//Find a crew member that most likely is controlling the vessel. So he is the one who sees the effects.
+				foreach (ProtoCrewMember crewMember in vessel.GetVesselCrew()) {
+					if (crewMember.seat.part.isControlSource) {
+						commander = bestCommander(commander, crewMember);
+					}
 				}
 			}
-			if (commander == null) {
-				commander = referencePart.protoModuleCrew.FirstOrDefault();
+			if (commander == null) { //if there's still no commander in the vessel then control lock must be removed because it is probably a probe core that has control at the moment
+				InputLockManager.RemoveControlLock(CONTROL_LOCK_ID);
 			}
 			
 			//Calcualte g-effects for each crew member
 			foreach (ProtoCrewMember crewMember in vessel.GetVesselCrew()) {
 				
 				if ( (crewMember.rosterStatus.Equals(ProtoCrewMember.RosterStatus.Dead)) || (crewMember.rosterStatus.Equals(ProtoCrewMember.RosterStatus.Missing)) ) {
-					if (crewMember.Equals(commander)) {
-						playEffects = false;
-					}
 					continue;
 				}
 				
@@ -156,8 +162,8 @@ namespace G_Effects
 				
 				//Calculate modifer by Kerbal individual charateristics
 				float kerbalModifier = 1;
-				conf.traitModifiers.TryGetValue(commander.experienceTrait.Title, out kerbalModifier);
-				if (commander.gender == ProtoCrewMember.Gender.Female) {
+				conf.traitModifiers.TryGetValue(crewMember.experienceTrait.Title, out kerbalModifier);
+				if (crewMember.gender == ProtoCrewMember.Gender.Female) {
 					kerbalModifier *= conf.femaleModifier;
 				}
 				
@@ -188,7 +194,7 @@ namespace G_Effects
 							//Negative G sound effects
 						} else if (gData.cumulativeG < -0.1 * conf.MAX_CUMULATIVE_G) {
 							if (gAudio.isHeartBeatsPlaying()) {
-								gAudio.setHeartBeatsVolume( Math.Min((float)(Math.Abs(gData.cumulativeG + 0.1 * conf.MAX_CUMULATIVE_G) /(1 - 0.1) / conf.MAX_CUMULATIVE_G * conf.heartBeatVolume * GameSettings.VOICE_VOLUME), GameSettings.VOICE_VOLUME * conf.heartBeatVolume));
+								gAudio.setHeartBeatsVolume( GameSettings.VOICE_VOLUME /*Math.Min((float)(Math.Abs(gData.cumulativeG + 0.1 * conf.MAX_CUMULATIVE_G) /(1 - 0.1) / conf.MAX_CUMULATIVE_G * conf.heartBeatVolume * GameSettings.VOICE_VOLUME), GameSettings.VOICE_VOLUME * conf.heartBeatVolume)*/);
 							} else {
 								gAudio.playHeartBeats();
 							}
@@ -210,6 +216,33 @@ namespace G_Effects
 				//If out of danger then stop negative G sound effects
 				if (gData.cumulativeG > -0.3 * conf.MAX_CUMULATIVE_G) {
 					gAudio.stopHeartBeats();
+				}
+			}
+		}
+		
+		//Determines who of among the two crew members is most likely in command 
+		ProtoCrewMember bestCommander(ProtoCrewMember current, ProtoCrewMember candidate) {
+			if (current == null) {
+				return candidate;
+			} else if (candidate == null) {
+				return current;
+			}
+			//None of crewMemebers are null further
+			
+			int current_pr = -1;
+			int candidate_pr = -1;
+			
+			priorities.TryGetValue(current.experienceTrait.Title.ToLower(), out current_pr);
+			priorities.TryGetValue(candidate.experienceTrait.Title.ToLower(), out candidate_pr);
+			if (current_pr > candidate_pr) { //return the one with the highest priority
+				return current;
+			} else if (candidate_pr > current_pr) {
+				return candidate;
+			} else { //or the one with the highest experience
+				if (candidate.experienceLevel > current.experienceLevel) {
+					return candidate;
+				} else {
+					return current;
 				}
 			}
 		}
@@ -255,19 +288,20 @@ namespace G_Effects
 			//Apply positive or negative visual effect
 			if (kerbalGData.cumulativeG > 0) {
 				colorOut = Color.black;
-				colorOut.a = (float)(Math.Abs(kerbalGData.cumulativeG) / conf.MAX_CUMULATIVE_G);
+				colorOut.a = (float)(Math.Abs(kerbalGData.cumulativeG) / conf.MAX_CUMULATIVE_G * 1.2);
 			} else {
 				colorOut.r = conf.redoutRGB.r;
 				colorOut.g = conf.redoutRGB.g;
 				colorOut.b = conf.redoutRGB.b;
-				colorOut.a = (float)(Math.Abs(kerbalGData.cumulativeG) / conf.MAX_CUMULATIVE_G);
+				colorOut.a = (float)(Math.Abs(kerbalGData.cumulativeG) / conf.MAX_CUMULATIVE_G * 1.2);
 			}
 			
 			//We'll need to draw an additional solid texture over the blackout for both intensification effect at the end and G-LOC fade in/out
 			colorFill.r = colorOut.r;
 			colorFill.g = colorOut.g;
 			colorFill.b = colorOut.b;
-			colorFill.a = (float)Math.Pow(colorOut.a, 8f); //this will intensify blackout/redout effect at the very end
+			//colorFill.a = (float)Math.Pow(Math.Max(0f, colorOut.a - 0.8f), 1f); //this will intensify blackout/redout effect at the very end
+			colorFill.a = (float)Math.Pow(Math.Abs(kerbalGData.cumulativeG) / conf.MAX_CUMULATIVE_G, 4);
 			
 			//The following will fade out in overlay whatever is diplayed if losing consciousness or fade in on wake up
 			float fade = (float)(kerbalGData.gLocFadeAmount * kerbalGData.gLocFadeAmount) / (float)(MAX_GLOC_FADE * MAX_GLOC_FADE);
