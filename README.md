@@ -11,7 +11,7 @@ Pilots are more trained than others, of course.
 * Blackouts/redouts
 * Tunnel vision as G rises
 * Kerbals grunt while they perform AGSM (anti-G straining maneuver) and take a heavy breath after
-* Blood beating in kerbal's ears on redout
+* Blood beating in kerbal's ears on redout (wear headphones with good bass and you'll feel it)
 * G-LOC (G-induced loss of conscience)
 
 G forces have different severity in four directions: upward, downward, backward, forward, so you may find that a kerbal launched in a rocket stands more G than

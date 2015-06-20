@@ -33,6 +33,7 @@ namespace G_Effects
 		readonly string CONTROL_LOCK_ID = "G_EFFECTS_LOCK";
 		readonly int MAX_GLOC_FADE = 100;
 		readonly double G_CONST = 9.81;
+		readonly int MAX_BREATHS = 6;
 		
 		Texture2D blackoutTexture = new Texture2D(32, 32, TextureFormat.ARGB32, false);
 		Texture2D fillTexture = new Texture2D(1, 1);
@@ -181,6 +182,7 @@ namespace G_Effects
 					gData.cumulativeG += Math.Sign(downwardG-1+forwardG) * rebCompensation + (Math.Abs(downwardG-1)*(downwardG-1) + Math.Abs(forwardG) * forwardG) / kerbalModifier;
 					
 					gAudio.stopBreath();
+					gData.needBreath = 0;
 					
 					if (Math.Abs(gData.cumulativeG) > conf.GLOC_CUMULATIVE_G) {
 						loseConscience(gData, crewMember.Equals(commander));
@@ -189,12 +191,12 @@ namespace G_Effects
 					} else {
 						//Positive and frontal G sound effects
 						if( ((downwardG > conf.positiveThreshold) || (forwardG > conf.positiveThreshold)) && (gData.cumulativeG > 0.1 * conf.MAX_CUMULATIVE_G)) {
-							gData.needBreath = (int)(2 + 4 * gData.cumulativeG / conf.MAX_CUMULATIVE_G);
+							gData.needBreath = (gData.needBreath > 0) || (gData.cumulativeG > 0.3 * conf.MAX_CUMULATIVE_G) ? (int)(1 + MAX_BREATHS * gData.cumulativeG / conf.MAX_CUMULATIVE_G) : 0;
 							gAudio.playGrunt(commander.gender.Equals(ProtoCrewMember.Gender.Female), -1f /*(float)((Math.Max(Math.Max(downwardG, forwardG), 10.0 + conf.positiveThreshold) - conf.positiveThreshold) / 10.0)*/);
 							//Negative G sound effects
 						} else if (gData.cumulativeG < -0.1 * conf.MAX_CUMULATIVE_G) {
 							if (gAudio.isHeartBeatsPlaying()) {
-								gAudio.setHeartBeatsVolume( GameSettings.VOICE_VOLUME /*Math.Min((float)(Math.Abs(gData.cumulativeG + 0.1 * conf.MAX_CUMULATIVE_G) /(1 - 0.1) / conf.MAX_CUMULATIVE_G * conf.heartBeatVolume * GameSettings.VOICE_VOLUME), GameSettings.VOICE_VOLUME * conf.heartBeatVolume)*/);
+								gAudio.setHeartBeatsVolume(Math.Min((float)(2 * Math.Abs(gData.cumulativeG + 0.1 * conf.MAX_CUMULATIVE_G) /(1 - 0.1) / conf.MAX_CUMULATIVE_G * conf.heartBeatVolume * GameSettings.VOICE_VOLUME), GameSettings.VOICE_VOLUME * conf.heartBeatVolume));
 							} else {
 								gAudio.playHeartBeats();
 							}
@@ -204,7 +206,7 @@ namespace G_Effects
 				} else {
 					//Breath back sound effect
 					if ((gData.needBreath > 0) && (gData.gLocFadeAmount == 0)) {
-						if (gAudio.tryPlayBreath(commander.gender.Equals(ProtoCrewMember.Gender.Female))) {
+						if (gAudio.tryPlayBreath(commander.gender.Equals(ProtoCrewMember.Gender.Female), (float)gData.needBreath / (float)MAX_BREATHS * conf.breathVolume * GameSettings.VOICE_VOLUME)) {
 							gData.needBreath -= 1;
 						}
 					}

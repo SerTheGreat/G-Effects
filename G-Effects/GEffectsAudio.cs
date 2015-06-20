@@ -207,9 +207,9 @@ namespace G_Effects
         }
         
         //Plays breath sound if it is not playing yet and returns true if success to count successfully played clips
-        public bool tryPlayBreath(bool female) {
+        public bool tryPlayBreath(bool female, float volume) {
         	if ((breathAudio != null) && !breathAudio.isPlaying && ((gruntAudio == null) || (!gruntAudio.isPlaying))) {
-        		playAudio(breathAudio, breathClips[UnityEngine.Random.Range(0, breathClips.Length-1)], GameSettings.VOICE_VOLUME * breathVolume, breathAudio.pitch); /*female ? BREATH_PITCH * femaleVoicePitch : BREATH_PITCH*/
+        		playAudio(breathAudio, breathClips[UnityEngine.Random.Range(0, breathClips.Length-1)], volume, breathAudio.pitch); /*female ? BREATH_PITCH * femaleVoicePitch : BREATH_PITCH*/
       	    	return true;
         	}
         	return false;
