@@ -58,9 +58,10 @@ namespace G_Effects
 		
 		protected void Start()
 		{
-			string path = KSPUtil.ApplicationRootPath.Replace(@"\", "/") + "/GameData/G-Effects/blackout.png";
+			/*string path = KSPUtil.ApplicationRootPath.Replace(@"\", "/") + "/GameData/G-Effects/blackout.png";
 			byte[] texture = File.ReadAllBytes(path);
-			blackoutTexture.LoadImage(texture);
+			blackoutTexture.LoadImage(texture);*/
+			blackoutTexture = GameDatabase.Instance.GetTexture("G-Effects/blackout", false);
 
 			// Hook into the rendering queue to draw the G effects
 			RenderingManager.AddToPostDrawQueue(3, new Callback(drawGEffects));
@@ -71,6 +72,14 @@ namespace G_Effects
 			// Add another rendering queue hook for the GUI
 			//RenderingManager.AddToPostDrawQueue(4, new Callback(drawGUI));
 			
+		}
+		
+		protected void OnDestroy() {
+			RenderingManager.RemoveFromPostDrawQueue(3, new Callback(drawGEffects));
+			GameEvents.onGamePause.Remove(onPause);
+			GameEvents.onGameUnpause.Remove(onUnPause);
+			GameEvents.onCrewKilled.Remove(onCrewKilled);
+			GameEvents.onVesselChange.Remove(onVesselChange);
 		}
 		
 		void onPause() {
@@ -251,15 +260,15 @@ namespace G_Effects
 		
 		
 		void loseConscience(KerbalGData kerbalGData, bool isCommander) {
-			if (isCommander) {
-				InputLockManager.SetControlLock(ControlTypes.ALL_SHIP_CONTROLS, CONTROL_LOCK_ID);
-			}
 			kerbalGData.gLocFadeAmount += conf.gLocFadeSpeed;
 			if (kerbalGData.gLocFadeAmount > MAX_GLOC_FADE) {
 				kerbalGData.gLocFadeAmount = MAX_GLOC_FADE;
-			}
-			if ( (conf.gLocScreenWarning != null) && (conf.gLocScreenWarning.Length > 0) ) {
-				ScreenMessages.PostScreenMessage(conf.gLocScreenWarning);
+				if (isCommander) {
+					InputLockManager.SetControlLock(ControlTypes.ALL_SHIP_CONTROLS, CONTROL_LOCK_ID);
+				}
+				if ( (conf.gLocScreenWarning != null) && (conf.gLocScreenWarning.Length > 0) ) {
+					ScreenMessages.PostScreenMessage(conf.gLocScreenWarning);
+				}
 			}
 		}
 		
@@ -287,23 +296,24 @@ namespace G_Effects
 				return;
 			}
 			
+			double severity = Math.Abs(kerbalGData.cumulativeG) / conf.MAX_CUMULATIVE_G;
+			
 			//Apply positive or negative visual effect
 			if (kerbalGData.cumulativeG > 0) {
 				colorOut = Color.black;
-				colorOut.a = (float)(Math.Abs(kerbalGData.cumulativeG) / conf.MAX_CUMULATIVE_G * 1.2);
+				colorOut.a = (float)(severity * 1.2);
 			} else {
 				colorOut.r = conf.redoutRGB.r;
 				colorOut.g = conf.redoutRGB.g;
 				colorOut.b = conf.redoutRGB.b;
-				colorOut.a = (float)(Math.Abs(kerbalGData.cumulativeG) / conf.MAX_CUMULATIVE_G * 1.2);
+				colorOut.a = (float)(severity * 1.2);
 			}
 			
 			//We'll need to draw an additional solid texture over the blackout for both intensification effect at the end and G-LOC fade in/out
 			colorFill.r = colorOut.r;
 			colorFill.g = colorOut.g;
 			colorFill.b = colorOut.b;
-			//colorFill.a = (float)Math.Pow(Math.Max(0f, colorOut.a - 0.8f), 1f); //this will intensify blackout/redout effect at the very end
-			colorFill.a = (float)Math.Pow(Math.Abs(kerbalGData.cumulativeG) / conf.MAX_CUMULATIVE_G, 4);
+			colorFill.a = (float)Math.Pow(severity, 4); //this will intensify blackout/redout effect at the very end
 			
 			//The following will fade out in overlay whatever is diplayed if losing consciousness or fade in on wake up
 			float fade = (float)(kerbalGData.gLocFadeAmount * kerbalGData.gLocFadeAmount) / (float)(MAX_GLOC_FADE * MAX_GLOC_FADE);
