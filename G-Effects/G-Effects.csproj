@@ -42,6 +42,7 @@
     <Compile Include="G-Effects.cs" />
     <Compile Include="GEffectsAudio.cs" />
     <Compile Include="KerbalGData.cs" />
+    <Compile Include="PortraitAgent.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
