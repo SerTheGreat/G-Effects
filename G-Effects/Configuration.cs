@@ -20,12 +20,14 @@ namespace G_Effects
         public float forwardGMultiplier = 0.5f; //Multiplier of a G force that pulls a kerbal forward
         public float backwardGMultiplier = 0.75f; //Multiplier of a G force that pulls a kerbal backward
         public double deltaGTolerance = 3; //The G effects start if the G value is below 1 - tolerance or above 1 + tolerance
-        public float gLocStartCoeff = 1.1f; //How much more our poor kerbal should suffer after complete loss of vision to have a G-LOC
+        public float gLocStartCoeff = 1.1f; //How much more should our poor kerbal suffer after complete loss of vision to have a G-LOC
+        public float gDeathCoeff = 8.0f; //How much more should a kerbal suffer to die of a sustained over-g
+        public bool gDeathEnabled = false; //Will the critical conditions and g-deaths take place or not
         public bool IVAOnly = false; //If set to true then g-effects will be rendered in IVA mode only
         public String gLocScreenWarning = null; //Text of a warning displayed when a kerbal loses consience. Leave empty to disable.
         public Color redoutRGB = Color.red; //Red, green, blue components of a redout color (in case you are certain that green men must have green blood, for example)
-		public int gLocFadeSpeed = 4; //Speed of fade-out visual effect when a kerbal is losing conscience
-		//You can disable specific sound effects by specifying 0 volumes.
+		public int gLocFadeSpeed = 4; //Speed of fade-out visual effect when a kerbal is losing consciousness
+				//You can disable specific sound effects by specifying 0 volumes.
 		//Volumes are specified as a fraction of KSP voice volume global setting (less than 1 means quiter, greater than 1 means louder)
 		public float gruntsVolume = 1.0f; //Volume of grunts when a kerbal tries to push blood back in his head on positive and frontal over-G
 		public float breathVolume = 1.0f; //Volume of heavy breath when a kerbal rests after over-G
@@ -45,7 +47,7 @@ namespace G_Effects
         public double negativeThreshold = -2;
         public double MAX_CUMULATIVE_G = 10000;
         public double GLOC_CUMULATIVE_G = 11000;
-		
+        
 		public Configuration()
 		{
 		}
@@ -62,6 +64,8 @@ namespace G_Effects
         	float.TryParse(nodes[0].GetValue("backwardGMultiplier"), out backwardGMultiplier);
         	Double.TryParse(nodes[0].GetValue("deltaGTolerance"), out deltaGTolerance);
         	float.TryParse(nodes[0].GetValue("gLocStartCoeff"), out gLocStartCoeff);
+        	float.TryParse(nodes[0].GetValue("gDeathCoeff"), out gDeathCoeff);
+        	bool.TryParse(nodes[0].GetValue("gDeathEnabled"), out gDeathEnabled);
         	        	
         	float.TryParse(nodes[0].GetValue("femaleModifier"), out femaleModifier);
         	ConfigNode traitNode = nodes[0].GetNode("TRAIT_MODIFIERS");

@@ -12,7 +12,7 @@ Pilots are more trained than others, of course.
 * Tunnel vision as G rises
 * Kerbals grunt while they perform AGSM (anti-G straining maneuver) and take a heavy breath after
 * Blood beating in kerbal's ears on redout (wear headphones with good bass and you'll feel it)
-* G-LOC (G-induced loss of conscience)
+* G-LOC (G-induced loss of consciousness)
 
 G forces have different severity in four directions: upward, downward, backward, forward, so you may find that a kerbal launched in a rocket stands more G than
 a kerbal piloting a plane upside down on a circular trajectory.
@@ -36,5 +36,4 @@ _The sounds are still a little WIP so you always have an option to disable them 
 
 **To be implemented:**
 
-- Kerbal g-deaths (or may be leave it for DeadlyReentry?)
 - Simulate loss of orientation after G-LOC

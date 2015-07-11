@@ -8,7 +8,7 @@ using UnityEngine;
 namespace G_Effects
 {
 	/// <summary>
-	/// The G-Effects modification for Kerbal Space Program
+	/// The G-Effects plugin for Kerbal Space Program
 	/// 
 	///Copyright (C) 2015 Ser
 	///This program is free software; you can redistribute it and/or
@@ -28,7 +28,8 @@ namespace G_Effects
 	[KSPAddon(KSPAddon.Startup.Flight, false)]
 	public class G_Effects : MonoBehaviour
 	{
-		
+
+		//TODO find a way to disable EVA button on G-LOC
 		//TODO turn off SAS on G-LOC
 		//TODO simulate orientation loss on G-LOC
 		
@@ -38,15 +39,16 @@ namespace G_Effects
 		readonly double G_CONST = 9.81;
 		readonly int MAX_BREATHS = 6;
 		
-		Texture2D blackoutTexture = new Texture2D(32, 32, TextureFormat.ARGB32, false);
-		Texture2D fillTexture = new Texture2D(1, 1);
+		static Texture2D blackoutTexture = null;//new Texture2D(32, 32, TextureFormat.ARGB32, false);
+		static Texture2D fillTexture = new Texture2D(1, 1);
 		Color colorOut = new Color();
 		Color colorFill = new Color();
 		ProtoCrewMember commander = null;
 		double downwardG;
 		double forwardG;
-		bool playEffects = true;
+		bool playEffects = false;
 		bool paused = false;
+		readonly static PortraitAgent PORTRAIT_AGENT = new PortraitAgent();
 
 		Configuration conf = new Configuration();
 		GEffectsAudio gAudio = new GEffectsAudio();
@@ -64,7 +66,9 @@ namespace G_Effects
 			/*string path = KSPUtil.ApplicationRootPath.Replace(@"\", "/") + "/GameData/G-Effects/blackout.png";
 			byte[] texture = File.ReadAllBytes(path);
 			blackoutTexture.LoadImage(texture);*/
-			blackoutTexture = GameDatabase.Instance.GetTexture("G-Effects/blackout", false);
+			if (blackoutTexture == null) {
+				blackoutTexture = GameDatabase.Instance.GetTexture("G-Effects/blackout", false);
+			}
 
 			// Hook into the rendering queue to draw the G effects
 			RenderingManager.AddToPostDrawQueue(3, new Callback(drawGEffects));
@@ -74,7 +78,7 @@ namespace G_Effects
 			GameEvents.onVesselChange.Add(onVesselChange);
 			// Add another rendering queue hook for the GUI
 			//RenderingManager.AddToPostDrawQueue(4, new Callback(drawGUI));
-			
+			PORTRAIT_AGENT.Start();
 		}
 		
 		protected void OnDestroy() {
@@ -83,6 +87,19 @@ namespace G_Effects
 			GameEvents.onGameUnpause.Remove(onUnPause);
 			GameEvents.onCrewKilled.Remove(onCrewKilled);
 			GameEvents.onVesselChange.Remove(onVesselChange);
+			PORTRAIT_AGENT.OnDestroy();
+		}
+		
+		protected void LateUpdate() {
+			if (!playEffects) {
+				PORTRAIT_AGENT.LateUpdate();
+			}
+		}
+		
+		protected void FixedUpdate() {
+			if (InputLockManager.GetControlLock(CONTROL_LOCK_ID) != ControlTypes.None) {
+				FlightGlobals.ActiveVessel.ctrlState.NeutralizeStick();
+			}
 		}
 		
 		void onPause() {
@@ -107,7 +124,7 @@ namespace G_Effects
 		
 		void resetValues() {
 			commander = null;
-			kerbalGDict.Clear(); //kerbalGDict is for persistance actually but if not cleared the G effects on crew will be "frozen" on switch out/in vessel
+			kerbalGDict.Clear(); //kerbalGDict is for persistence actually but if not cleared the G effects on crew will be "frozen" on switch out/in vessel
 			InputLockManager.RemoveControlLock(CONTROL_LOCK_ID);
 		}
 		
@@ -130,7 +147,7 @@ namespace G_Effects
 			Part referencePart = vessel.GetReferenceTransformPart();
 			
 			commander = null; //the commander is recalculated every update
-			playEffects = false; //this changes to true later if all neccessary conditions are met
+			playEffects = false; //this changes to true later if all necessary conditions are met
 			
 			//Return without any effect if the vessel hasn't any crew
 			if ((vessel.GetCrewCount() == 0)) {
@@ -155,8 +172,8 @@ namespace G_Effects
 			
 			//Calcualte g-effects for each crew member
 			foreach (ProtoCrewMember crewMember in vessel.GetVesselCrew()) {
-				
-				if ( (crewMember.rosterStatus.Equals(ProtoCrewMember.RosterStatus.Dead)) || (crewMember.rosterStatus.Equals(ProtoCrewMember.RosterStatus.Missing)) ) {
+
+				if ( isRosterDead(crewMember)) {
 					continue;
 				}
 				
@@ -196,8 +213,8 @@ namespace G_Effects
 					gAudio.stopBreath();
 					gData.needBreath = 0;
 					
-					if (Math.Abs(gData.cumulativeG) > conf.GLOC_CUMULATIVE_G) {
-						loseConscience(gData, crewMember.Equals(commander));
+					if (isGLocCondition(gData)) {
+						loseConsciousness(crewMember, gData, crewMember.Equals(commander), playEffects);
 						gData.needBreath = 0;
 						gAudio.stopHeartBeats();
 					} else {
@@ -223,13 +240,27 @@ namespace G_Effects
 						}
 					}
 					if (Math.Abs(gData.cumulativeG) < 0.1 * conf.MAX_CUMULATIVE_G) {
-						reboundConscience(gData, crewMember.Equals(commander));
+						reboundConsciousness(crewMember, gData, crewMember.Equals(commander));
 					}
 				}
 				
 				//If out of danger then stop negative G sound effects
 				if (gData.cumulativeG > -0.3 * conf.MAX_CUMULATIVE_G) {
 					gAudio.stopHeartBeats();
+				}
+
+				//Display current health status on portrait or die the crew member
+				if (isCriticalCondition(gData)) {
+					PORTRAIT_AGENT.setKerbalPortraitText(crewMember.name, "CRITICAL\nCONDITION", 0, 0, new Color(1f, 0f, 0f, 1), 4, 2);
+				} else if (isGLocCondition(gData)) {
+					PORTRAIT_AGENT.setKerbalPortraitText(crewMember.name, "RESPONSE\nMINIMAL",  ((int)(Planetarium.GetUniversalTime() * 10) % 4 - 2), 0, new Color(1f, 1f, 0f, 1), 0, 1);
+				} else {
+					PORTRAIT_AGENT.disableKerbalPortraitText(crewMember.name);					
+				}
+				if (isDeathCondition(gData)) {
+					crewMember.Die();
+					PORTRAIT_AGENT.disableKerbalPortraitText(crewMember.name);
+					kerbalGDict.Remove(crewMember.name);
 				}
 			}
 		}
@@ -262,30 +293,48 @@ namespace G_Effects
 		}
 		
 		
-		void loseConscience(KerbalGData kerbalGData, bool isCommander) {
+		void loseConsciousness(ProtoCrewMember crewMember, KerbalGData kerbalGData, bool isCommander, bool outputAllowed) {
 			kerbalGData.gLocFadeAmount += conf.gLocFadeSpeed;
 			if (kerbalGData.gLocFadeAmount > MAX_GLOC_FADE) {
 				kerbalGData.gLocFadeAmount = MAX_GLOC_FADE;
 				if (isCommander) {
 					InputLockManager.SetControlLock(ControlTypes.ALL_SHIP_CONTROLS, CONTROL_LOCK_ID);
 				}
-				if ( (conf.gLocScreenWarning != null) && (conf.gLocScreenWarning.Length > 0) ) {
+				if ( outputAllowed && (conf.gLocScreenWarning != null) && (conf.gLocScreenWarning.Length > 0) ) {
 					ScreenMessages.PostScreenMessage(conf.gLocScreenWarning);
 				}
 			}
 		}
 		
 		
-		void reboundConscience(KerbalGData kerbalGData, bool isCommander) {
-			if (isCommander) {
+		void reboundConsciousness(ProtoCrewMember crewMember, KerbalGData kerbalGData, bool isCommander) {
+			//if (isCommander)
+			{
 				kerbalGData.gLocFadeAmount -= conf.gLocFadeSpeed;
 			}
 			if (kerbalGData.gLocFadeAmount <= 0) {
-				InputLockManager.RemoveControlLock(CONTROL_LOCK_ID);
 				kerbalGData.gLocFadeAmount = 0;
+				if (isCommander) {
+					InputLockManager.RemoveControlLock(CONTROL_LOCK_ID);
+				}
 			}
 		}
 		
+		bool isGLocCondition(KerbalGData kerbalGData) {
+			return Math.Abs(kerbalGData.cumulativeG) > conf.GLOC_CUMULATIVE_G;			
+		}
+		
+		bool isCriticalCondition(KerbalGData kerbalGData) {
+			return conf.gDeathEnabled && (Math.Abs(kerbalGData.cumulativeG) > (conf.gLocStartCoeff + 0.8 * (conf.gDeathCoeff - conf.gLocStartCoeff)) * conf.MAX_CUMULATIVE_G);
+		}
+		
+		bool isDeathCondition(KerbalGData kerbalGData) {
+			return conf.gDeathEnabled && (kerbalGData.cumulativeG > conf.gDeathCoeff * conf.MAX_CUMULATIVE_G);
+		}
+		
+		bool isRosterDead(ProtoCrewMember crewMember) {
+			return crewMember.rosterStatus.Equals(ProtoCrewMember.RosterStatus.Dead) || crewMember.rosterStatus.Equals(ProtoCrewMember.RosterStatus.Missing);
+		}
 		
 		void drawGEffects()
 		{
