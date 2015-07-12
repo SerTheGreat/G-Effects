@@ -29,7 +29,7 @@ Configuration of the mod is done via G-Effects.cfg file. Look through it to have
 _The sounds are still a little WIP so you always have an option to disable them via config file if you find'em too annoying._
 
 **Known issues and limitations:**
-
+- Be careful with various tweaks that may lead to some sudden acceleration rise or collision lags, for example ejection or undocking force tweaks, as they may cause crew to lose consciousness or even die of excessive g forces.
 - G-forces caused by a ship's rotation don't affect because they are not likely to be severe enough to induce any significant effects.
 - Effects are calculated for the active vessel's crew only. You can switch to another vessel and back and have effects applied as if they have just started.
 
