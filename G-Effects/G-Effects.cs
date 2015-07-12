@@ -30,7 +30,6 @@ namespace G_Effects
 	{
 
 		//TODO find a way to disable EVA button on G-LOC
-		//TODO turn off SAS on G-LOC
 		//TODO simulate orientation loss on G-LOC
 		
 		readonly string APP_NAME = "G-Effects";
