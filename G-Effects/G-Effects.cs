@@ -30,7 +30,6 @@ namespace G_Effects
 	{
 
 		//TODO find a way to disable EVA button on G-LOC
-		//TODO turn off SAS on G-LOC
 		//TODO simulate orientation loss on G-LOC
 		
 		readonly string APP_NAME = "G-Effects";
@@ -292,12 +291,15 @@ namespace G_Effects
 			}
 		}
 		
-		
 		void loseConsciousness(ProtoCrewMember crewMember, KerbalGData kerbalGData, bool isCommander, bool outputAllowed) {
 			kerbalGData.gLocFadeAmount += conf.gLocFadeSpeed;
 			if (kerbalGData.gLocFadeAmount > MAX_GLOC_FADE) {
 				kerbalGData.gLocFadeAmount = MAX_GLOC_FADE;
 				if (isCommander) {
+					Vessel vessel = crewMember.KerbalRef.InVessel;
+					if (!hasProbeCore(vessel)) {
+					    vessel.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
+					}
 					InputLockManager.SetControlLock(ControlTypes.ALL_SHIP_CONTROLS, CONTROL_LOCK_ID);
 				}
 				if ( outputAllowed && (conf.gLocScreenWarning != null) && (conf.gLocScreenWarning.Length > 0) ) {
@@ -308,16 +310,21 @@ namespace G_Effects
 		
 		
 		void reboundConsciousness(ProtoCrewMember crewMember, KerbalGData kerbalGData, bool isCommander) {
-			//if (isCommander)
-			{
-				kerbalGData.gLocFadeAmount -= conf.gLocFadeSpeed;
-			}
+			kerbalGData.gLocFadeAmount -= conf.gLocFadeSpeed;
 			if (kerbalGData.gLocFadeAmount <= 0) {
 				kerbalGData.gLocFadeAmount = 0;
 				if (isCommander) {
 					InputLockManager.RemoveControlLock(CONTROL_LOCK_ID);
 				}
 			}
+		}
+		
+		bool hasProbeCore(Vessel vessel) {
+			foreach (Part part in vessel.Parts) {
+				if (part.isControlSource && (part.CrewCapacity == 0))
+					return true;
+			}
+			return false;
 		}
 		
 		bool isGLocCondition(KerbalGData kerbalGData) {
