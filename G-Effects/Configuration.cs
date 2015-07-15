@@ -20,6 +20,7 @@ namespace G_Effects
         public float forwardGMultiplier = 0.5f; //Multiplier of a G force that pulls a kerbal forward
         public float backwardGMultiplier = 0.75f; //Multiplier of a G force that pulls a kerbal backward
         public double deltaGTolerance = 3; //The G effects start if the G value is below 1 - tolerance or above 1 + tolerance
+        public float gDampingThreshold = 100; //Threshold for damping unnatural acceleration peaks caused by imperfect physics (in G per frame)
         public float gLocStartCoeff = 1.1f; //How much more should our poor kerbal suffer after complete loss of vision to have a G-LOC
         public float gDeathCoeff = 8.0f; //How much more should a kerbal suffer to die of a sustained over-g
         public bool gDeathEnabled = false; //Will the critical conditions and g-deaths take place or not
@@ -34,6 +35,7 @@ namespace G_Effects
 		public float heartBeatVolume = 1.0f; //Volume of blood beating in kerbal's ears on negative over-G
 		public float femaleVoicePitch = 1.4f; //How much female kerbals' voice pitch is higher than males' one
 		public float breathSoundPitch = 1.6f; //Pitch of heavy breath's sounds
+		public bool enableLogging = false; //Enable this only in debug purposes as it floods the logs very much 
 		
 		//Kerbal personal modifiers are used as multipliers for the gResistance parameter and also affect the speed of G effects accumulation  
 		public float femaleModifier = 1; //How stronger are females than males
@@ -63,6 +65,7 @@ namespace G_Effects
         	float.TryParse(nodes[0].GetValue("fowardGMultiplier"), out forwardGMultiplier);
         	float.TryParse(nodes[0].GetValue("backwardGMultiplier"), out backwardGMultiplier);
         	Double.TryParse(nodes[0].GetValue("deltaGTolerance"), out deltaGTolerance);
+        	float.TryParse(nodes[0].GetValue("gDampingThreshold"), out gDampingThreshold);
         	float.TryParse(nodes[0].GetValue("gLocStartCoeff"), out gLocStartCoeff);
         	float.TryParse(nodes[0].GetValue("gDeathCoeff"), out gDeathCoeff);
         	bool.TryParse(nodes[0].GetValue("gDeathEnabled"), out gDeathEnabled);
@@ -102,6 +105,8 @@ namespace G_Effects
         	float.TryParse(nodes[0].GetValue("heartBeatVolume"), out heartBeatVolume);
         	float.TryParse(nodes[0].GetValue("femaleVoicePitch"), out femaleVoicePitch);
         	float.TryParse(nodes[0].GetValue("breathSoundPitch"), out breathSoundPitch);
+        	
+        	bool.TryParse(nodes[0].GetValue("enableLogging"), out enableLogging);
         	
         	positiveThreshold = 1 + deltaGTolerance;
 			negativeThreshold = 1 - deltaGTolerance;

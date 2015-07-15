@@ -32,11 +32,11 @@ namespace G_Effects
 		//TODO find a way to disable EVA button on G-LOC
 		//TODO simulate orientation loss on G-LOC
 		
-		readonly string APP_NAME = "G-Effects";
-		readonly string CONTROL_LOCK_ID = "G_EFFECTS_LOCK";
-		readonly int MAX_GLOC_FADE = 100;
-		readonly double G_CONST = 9.81;
-		readonly int MAX_BREATHS = 6;
+		const string APP_NAME = "G-Effects";
+		const string CONTROL_LOCK_ID = "G_EFFECTS_LOCK";
+		const int MAX_GLOC_FADE = 100;
+		const double G_CONST = 9.81;
+		const int MAX_BREATHS = 6;
 		
 		static Texture2D blackoutTexture = null;//new Texture2D(32, 32, TextureFormat.ARGB32, false);
 		static Texture2D fillTexture = new Texture2D(1, 1);
@@ -157,7 +157,9 @@ namespace G_Effects
 				gAudio.bindToTransform(FlightCamera.fetch.mainCamera.transform);
 			}
 			
-			if (referencePart.CrewCapacity > 0) { //otherwise the vessel is controlled via probe core
+			if (vessel.isEVA) {
+				commander = vessel.GetVesselCrew()[0];
+			} else if (referencePart.CrewCapacity > 0) { //otherwise the vessel is controlled via probe core
 				//Find a crew member that most likely is controlling the vessel. So he is the one who sees the effects.
 				foreach (ProtoCrewMember crewMember in vessel.GetVesselCrew()) {
 					if (crewMember.seat.part.isControlSource) {
@@ -168,7 +170,7 @@ namespace G_Effects
 			if (commander == null) { //if there's still no commander in the vessel then control lock must be removed because it is probably a probe core that has control at the moment
 				InputLockManager.RemoveControlLock(CONTROL_LOCK_ID);
 			}
-			
+
 			//Calcualte g-effects for each crew member
 			foreach (ProtoCrewMember crewMember in vessel.GetVesselCrew()) {
 
@@ -199,11 +201,13 @@ namespace G_Effects
 				//Calculate G forces
 				Vector3d gAcceleration = FlightGlobals.getGeeForceAtPosition(vessel.GetWorldPos3D()) - vessel.acceleration;
 				Vector3d cabinAcceleration = vessel.transform.InverseTransformDirection(gAcceleration); //vessel.transform is an active part's transform
+				writeLog("crew=" + crewMember.name + " cabinAcceleration=" + cabinAcceleration);
+				cabinAcceleration = dampAcceleration(cabinAcceleration, gData.previousAcceleration);
+				gData.previousAcceleration = cabinAcceleration;
 				downwardG = cabinAcceleration.z / G_CONST * (downwardG-1 > 0 ? conf.downwardGMultiplier : conf.upwardGMultiplier);
 				forwardG = cabinAcceleration.y / G_CONST * (forwardG > 0 ? conf.forwardGMultiplier : conf.backwardGMultiplier);
 				
 				gData.cumulativeG -= Math.Sign(gData.cumulativeG) * conf.gResistance * kerbalModifier;
-				
 				if ((downwardG > conf.positiveThreshold) || (downwardG < conf.negativeThreshold) || (forwardG > conf.positiveThreshold) || (forwardG < conf.negativeThreshold)) {
 					
 					double rebCompensation = conf.gResistance * kerbalModifier - conf.deltaGTolerance * conf.deltaGTolerance / kerbalModifier; //this is calculated so the rebound is in equilibrium with cumulativeG at the very point of G threshold
@@ -243,6 +247,8 @@ namespace G_Effects
 					}
 				}
 				
+				writeLog("crew=" + crewMember.name + " cumulativeG=" + gData.cumulativeG);
+				
 				//If out of danger then stop negative G sound effects
 				if (gData.cumulativeG > -0.3 * conf.MAX_CUMULATIVE_G) {
 					gAudio.stopHeartBeats();
@@ -261,6 +267,19 @@ namespace G_Effects
 					PORTRAIT_AGENT.disableKerbalPortraitText(crewMember.name);
 					kerbalGDict.Remove(crewMember.name);
 				}
+			}
+		}
+		
+		//Damps acceleration peak if it is detected for the current frame.
+		//Most likely the peaks are caused by imperfect physics and need to be damped for not cause unnatural effects on crew.
+		//(Acceleration of a kerbal going EVA is 572G)
+		Vector3d dampAcceleration(Vector3d current_acc, Vector3d prev_acc) {
+			double magnitude = (current_acc - prev_acc).magnitude;
+			if ((current_acc - prev_acc).magnitude > conf.gDampingThreshold * G_CONST) {
+				writeLog("Peak detected. G="+((current_acc - prev_acc).magnitude / G_CONST) + " threshold="+conf.gDampingThreshold);
+				return prev_acc;
+			} else {
+				return current_acc;
 			}
 		}
 		
@@ -392,6 +411,12 @@ namespace G_Effects
 				GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), fillTexture);
 			}
 			
+		}
+		
+		void writeLog(string text) {
+			if (conf.enableLogging) {
+				KSPLog.print(APP_NAME + ": " + text);
+			}
 		}
 
 	}
