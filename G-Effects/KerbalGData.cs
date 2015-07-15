@@ -13,12 +13,8 @@ namespace G_Effects
         /// value is increased, by larger amounts for higher current G levels, to allow for longer periods of G
         /// force tolerance at lower G levels.
         public double cumulativeG = 0;
+        public Vector3d previousAcceleration = Vector3d.zero; //this is used to track sudden G peaks caused by the imperfectness of physics  
 		public int needBreath = 0;
 		public int gLocFadeAmount = 0;
-						
-		public KerbalGData()
-		{
-		}
-		
 	}
 }
