@@ -29,6 +29,8 @@ namespace G_Effects
 	public class G_Effects : MonoBehaviour
 	{
 
+		//TODO make the RESPONSE MINIMAL go away on G-LOC with playEffects == true
+		//TODO sort the grunt sounds
 		//TODO find a way to disable EVA button on G-LOC
 		//TODO simulate orientation loss on G-LOC
 		
@@ -153,7 +155,7 @@ namespace G_Effects
 				return;
 			}
 			
-			if (!gAudio.IsBoundToTransform()) {
+			if (!gAudio.isBoundToTransform()) {
 				gAudio.bindToTransform(FlightCamera.fetch.mainCamera.transform);
 			}
 			
@@ -183,7 +185,8 @@ namespace G_Effects
 					(!conf.IVAOnly || (CameraManager.Instance.currentCameraMode == CameraManager.CameraMode.IVA)) &&
 					!MapView.MapIsEnabled;
 				
-				gAudio.SetAudioEnabled(playEffects);
+				gAudio.setAudioEnabled(playEffects);
+				PORTRAIT_AGENT.enableText(!playEffects);
 
 				KerbalGData gData;
 				if (!kerbalGDict.TryGetValue(crewMember.name, out gData)) {
@@ -208,6 +211,7 @@ namespace G_Effects
 				forwardG = cabinAcceleration.y / G_CONST * (forwardG > 0 ? conf.forwardGMultiplier : conf.backwardGMultiplier);
 				
 				gData.cumulativeG -= Math.Sign(gData.cumulativeG) * conf.gResistance * kerbalModifier;
+				//gAudio.applyFilter(1 - Mathf.Clamp01((float)(1.25 * Math.Pow(Math.Abs(gData.cumulativeG) / conf.MAX_CUMULATIVE_G, 2) - 0.2)));
 				if ((downwardG > conf.positiveThreshold) || (downwardG < conf.negativeThreshold) || (forwardG > conf.positiveThreshold) || (forwardG < conf.negativeThreshold)) {
 					
 					double rebCompensation = conf.gResistance * kerbalModifier - conf.deltaGTolerance * conf.deltaGTolerance / kerbalModifier; //this is calculated so the rebound is in equilibrium with cumulativeG at the very point of G threshold
@@ -238,7 +242,9 @@ namespace G_Effects
 				} else {
 					//Breath back sound effect
 					if ((gData.needBreath > 0) && (gData.gLocFadeAmount == 0)) {
-						if (gAudio.tryPlayBreath(commander.gender.Equals(ProtoCrewMember.Gender.Female), (float)gData.needBreath / (float)MAX_BREATHS * conf.breathVolume * GameSettings.VOICE_VOLUME)) {
+						if (gAudio.tryPlayBreath(commander.gender.Equals(ProtoCrewMember.Gender.Female),
+						                         UnityEngine.Random.Range((float)Mathf.Clamp(gData.needBreath - 2, 1, MAX_BREATHS), (float)gData.needBreath) / (float)MAX_BREATHS * conf.breathVolume * GameSettings.VOICE_VOLUME,
+						                         1f - 0.2f * (1 - (float)gData.needBreath / (float)MAX_BREATHS))) {
 							gData.needBreath -= 1;
 						}
 					}
@@ -246,6 +252,8 @@ namespace G_Effects
 						reboundConsciousness(crewMember, gData, crewMember.Equals(commander));
 					}
 				}
+				
+				gAudio.applyFilters(1 - gData.gLocFadeAmount / MAX_GLOC_FADE);
 				
 				writeLog("crew=" + crewMember.name + " cumulativeG=" + gData.cumulativeG);
 				
@@ -271,7 +279,7 @@ namespace G_Effects
 		}
 		
 		//Damps acceleration peak if it is detected for the current frame.
-		//Most likely the peaks are caused by imperfect physics and need to be damped for not cause unnatural effects on crew.
+		//Most likely the peaks are caused by imperfect physics and need to be damped for not causing unnatural effects on crew.
 		//(Acceleration of a kerbal going EVA is 572G)
 		Vector3d dampAcceleration(Vector3d current_acc, Vector3d prev_acc) {
 			double magnitude = (current_acc - prev_acc).magnitude;
@@ -283,7 +291,7 @@ namespace G_Effects
 			}
 		}
 		
-		//Determines who of among the two crew members is most likely in command 
+		//Determines who among of the two crew members is most likely in command 
 		ProtoCrewMember bestCommander(ProtoCrewMember current, ProtoCrewMember candidate) {
 			if (current == null) {
 				return candidate;

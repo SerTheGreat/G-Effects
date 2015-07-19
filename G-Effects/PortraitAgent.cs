@@ -21,6 +21,7 @@ namespace G_Effects
 		private KerbalGUIManager manager;
 		private static Texture2D blackTexture = null;
 		private static GUIStyle centeredLabelStyle = null;
+		private bool textEnabled = false;
 		
 		internal void Start()
 		{
@@ -45,6 +46,10 @@ namespace G_Effects
 			GameEvents.onVesselChange.Remove(vesselCheck);
 
 			RenderingManager.RemoveFromPostDrawQueue(5, drawLabels);
+		}
+		
+		internal void enableText(bool enable) {
+			textEnabled = enable;			
 		}
 		
 		internal void setKerbalPortraitText(string kerbalName, string text, int leftOffest, int topOffset, Color textColor, int blinkFreq, int alphaBlendMode) {
@@ -120,6 +125,10 @@ namespace G_Effects
 
 		private void drawLabels()
 		{
+			if (!textEnabled) {
+				return;
+			}
+			
 			int crewCount = KerbalGUIManager.ActiveCrew.Count;
 
 			if (crewCount <= 0)
