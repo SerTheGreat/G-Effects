@@ -36,8 +36,7 @@ namespace G_Effects
 		const string CONTROL_LOCK_ID = "G_EFFECTS_LOCK";
 		const int MAX_GLOC_FADE = 100;
 		const double G_CONST = 9.81;
-		const int MAX_BREATHS = 6;
-		
+				
 		static Texture2D blackoutTexture = null;//new Texture2D(32, 32, TextureFormat.ARGB32, false);
 		static Texture2D fillTexture = new Texture2D(1, 1);
 		Color colorOut = new Color();
@@ -58,7 +57,7 @@ namespace G_Effects
 		};
 		
 		//This is for G effects persistance
-		public Dictionary<string, KerbalGData> kerbalGDict = new Dictionary<string, KerbalGData>();
+		public Dictionary<string, KerbalGState> kerbalGDict = new Dictionary<string, KerbalGState>();
 		
 		protected void Start()
 		{
@@ -90,9 +89,7 @@ namespace G_Effects
 		}
 		
 		protected void LateUpdate() {
-			if (!playEffects) {
-				PORTRAIT_AGENT.LateUpdate();
-			}
+			PORTRAIT_AGENT.LateUpdate();
 		}
 		
 		protected void FixedUpdate() {
@@ -102,13 +99,11 @@ namespace G_Effects
 		}
 		
 		void onPause() {
-			paused = true;
-			gAudio.pauseAllSounds(paused);
+			gAudio.pauseAllSounds(true);
 		}
 		
 		void onUnPause() {
-			paused = false;
-			gAudio.pauseAllSounds(paused);
+			gAudio.pauseAllSounds(false);
 		}
 		
 		void onCrewKilled(EventReport eventReport) {
@@ -125,6 +120,7 @@ namespace G_Effects
 			commander = null;
 			kerbalGDict.Clear(); //kerbalGDict is for persistence actually but if not cleared the G effects on crew will be "frozen" on switch out/in vessel
 			InputLockManager.RemoveControlLock(CONTROL_LOCK_ID);
+			PORTRAIT_AGENT.enableText(false);
 		}
 		
 		protected void Awake() {
@@ -153,7 +149,7 @@ namespace G_Effects
 				return;
 			}
 			
-			if (!gAudio.IsBoundToTransform()) {
+			if (!gAudio.isBoundToTransform()) {
 				gAudio.bindToTransform(FlightCamera.fetch.mainCamera.transform);
 			}
 			
@@ -183,12 +179,13 @@ namespace G_Effects
 					(!conf.IVAOnly || (CameraManager.Instance.currentCameraMode == CameraManager.CameraMode.IVA)) &&
 					!MapView.MapIsEnabled;
 				
-				gAudio.SetAudioEnabled(playEffects);
+				gAudio.setAudioEnabled(playEffects);
+				PORTRAIT_AGENT.enableText(!playEffects);
 
-				KerbalGData gData;
-				if (!kerbalGDict.TryGetValue(crewMember.name, out gData)) {
-					gData = new KerbalGData();
-					kerbalGDict.Add(crewMember.name, gData);
+				KerbalGState gState;
+				if (!kerbalGDict.TryGetValue(crewMember.name, out gState)) {
+					gState = new KerbalGState(conf);
+					kerbalGDict.Add(crewMember.name, gState);
 				}
 				
 				//Calculate modifer by Kerbal individual charateristics
@@ -202,33 +199,34 @@ namespace G_Effects
 				Vector3d gAcceleration = FlightGlobals.getGeeForceAtPosition(vessel.GetWorldPos3D()) - vessel.acceleration;
 				Vector3d cabinAcceleration = vessel.transform.InverseTransformDirection(gAcceleration); //vessel.transform is an active part's transform
 				writeLog("crew=" + crewMember.name + " cabinAcceleration=" + cabinAcceleration);
-				cabinAcceleration = dampAcceleration(cabinAcceleration, gData.previousAcceleration);
-				gData.previousAcceleration = cabinAcceleration;
+				cabinAcceleration = dampAcceleration(cabinAcceleration, gState.previousAcceleration);
+				gState.previousAcceleration = cabinAcceleration;
 				downwardG = cabinAcceleration.z / G_CONST * (downwardG-1 > 0 ? conf.downwardGMultiplier : conf.upwardGMultiplier);
 				forwardG = cabinAcceleration.y / G_CONST * (forwardG > 0 ? conf.forwardGMultiplier : conf.backwardGMultiplier);
 				
-				gData.cumulativeG -= Math.Sign(gData.cumulativeG) * conf.gResistance * kerbalModifier;
+				gState.cumulativeG -= Math.Sign(gState.cumulativeG) * conf.gResistance * kerbalModifier;
+				//gAudio.applyFilter(1 - Mathf.Clamp01((float)(1.25 * Math.Pow(Math.Abs(gData.cumulativeG) / conf.MAX_CUMULATIVE_G, 2) - 0.2)));
 				if ((downwardG > conf.positiveThreshold) || (downwardG < conf.negativeThreshold) || (forwardG > conf.positiveThreshold) || (forwardG < conf.negativeThreshold)) {
 					
 					double rebCompensation = conf.gResistance * kerbalModifier - conf.deltaGTolerance * conf.deltaGTolerance / kerbalModifier; //this is calculated so the rebound is in equilibrium with cumulativeG at the very point of G threshold
-					gData.cumulativeG += Math.Sign(downwardG-1+forwardG) * rebCompensation + (Math.Abs(downwardG-1)*(downwardG-1) + Math.Abs(forwardG) * forwardG) / kerbalModifier;
+					gState.cumulativeG += Math.Sign(downwardG-1+forwardG) * rebCompensation + (Math.Abs(downwardG-1)*(downwardG-1) + Math.Abs(forwardG) * forwardG) / kerbalModifier;
 					
 					gAudio.stopBreath();
-					gData.needBreath = 0;
+					gState.resetBreath();
 					
-					if (isGLocCondition(gData)) {
-						loseConsciousness(crewMember, gData, crewMember.Equals(commander), playEffects);
-						gData.needBreath = 0;
+					if (gState.isGLocCondition()) {
+						loseConsciousness(crewMember, gState, crewMember.Equals(commander), playEffects);
 						gAudio.stopHeartBeats();
 					} else {
 						//Positive and frontal G sound effects
-						if( ((downwardG > conf.positiveThreshold) || (forwardG > conf.positiveThreshold)) && (gData.cumulativeG > 0.1 * conf.MAX_CUMULATIVE_G)) {
-							gData.needBreath = (gData.needBreath > 0) || (gData.cumulativeG > 0.3 * conf.MAX_CUMULATIVE_G) ? (int)(1 + MAX_BREATHS * gData.cumulativeG / conf.MAX_CUMULATIVE_G) : 0;
+						if( ((downwardG > conf.positiveThreshold) || (forwardG > conf.positiveThreshold)) && (gState.cumulativeG > 0.1 * conf.MAX_CUMULATIVE_G)) {
+							//gData.needBreath = Mathf.Max(gData.needBreath, (gData.cumulativeG > 0.6 * conf.MAX_CUMULATIVE_G) ? (int)(MAX_BREATHS * gData.getSeverity() - 1) : 0);
+							gState.startAGSM(Planetarium.GetUniversalTime());
 							gAudio.playGrunt(commander.gender.Equals(ProtoCrewMember.Gender.Female), -1f /*(float)((Math.Max(Math.Max(downwardG, forwardG), 10.0 + conf.positiveThreshold) - conf.positiveThreshold) / 10.0)*/);
 							//Negative G sound effects
-						} else if (gData.cumulativeG < -0.1 * conf.MAX_CUMULATIVE_G) {
+						} else if (gState.cumulativeG < -0.1 * conf.MAX_CUMULATIVE_G) {
 							if (gAudio.isHeartBeatsPlaying()) {
-								gAudio.setHeartBeatsVolume(Math.Min((float)(2 * Math.Abs(gData.cumulativeG + 0.1 * conf.MAX_CUMULATIVE_G) /(1 - 0.1) / conf.MAX_CUMULATIVE_G * conf.heartBeatVolume * GameSettings.VOICE_VOLUME), GameSettings.VOICE_VOLUME * conf.heartBeatVolume));
+								gAudio.setHeartBeatsVolume(Math.Min((float)(2 * Math.Abs(gState.cumulativeG + 0.1 * conf.MAX_CUMULATIVE_G) /(1 - 0.1) / conf.MAX_CUMULATIVE_G * conf.heartBeatVolume * GameSettings.VOICE_VOLUME), GameSettings.VOICE_VOLUME * conf.heartBeatVolume));
 							} else {
 								gAudio.playHeartBeats();
 							}
@@ -237,32 +235,38 @@ namespace G_Effects
 					
 				} else {
 					//Breath back sound effect
-					if ((gData.needBreath > 0) && (gData.gLocFadeAmount == 0)) {
-						if (gAudio.tryPlayBreath(commander.gender.Equals(ProtoCrewMember.Gender.Female), (float)gData.needBreath / (float)MAX_BREATHS * conf.breathVolume * GameSettings.VOICE_VOLUME)) {
-							gData.needBreath -= 1;
+					gState.stopAGSM(Planetarium.GetUniversalTime());
+					int breathNeeded = gState.getBreathNeeded();
+					if ((breathNeeded > 0) && (gState.gLocFadeAmount == 0)) {
+						if (gAudio.tryPlayBreath(commander.gender.Equals(ProtoCrewMember.Gender.Female),
+						                         UnityEngine.Random.Range((float)Mathf.Clamp(breathNeeded - 2, 1, conf.maxBreaths), (float)breathNeeded) / (float)conf.maxBreaths * conf.breathVolume * GameSettings.VOICE_VOLUME,
+						                         1f - 0.2f * (1 - (float)breathNeeded / (float)conf.maxBreaths))) {
+							gState.takeBreath();
 						}
 					}
-					if (Math.Abs(gData.cumulativeG) < 0.1 * conf.MAX_CUMULATIVE_G) {
-						reboundConsciousness(crewMember, gData, crewMember.Equals(commander));
+					if (Math.Abs(gState.cumulativeG) < 0.1 * conf.MAX_CUMULATIVE_G) {
+						reboundConsciousness(crewMember, gState, crewMember.Equals(commander));
 					}
 				}
 				
-				writeLog("crew=" + crewMember.name + " cumulativeG=" + gData.cumulativeG);
+				gAudio.applyFilters(1 - gState.gLocFadeAmount / MAX_GLOC_FADE);
+				
+				writeLog("crew=" + crewMember.name + " cumulativeG=" + gState.cumulativeG);
 				
 				//If out of danger then stop negative G sound effects
-				if (gData.cumulativeG > -0.3 * conf.MAX_CUMULATIVE_G) {
+				if (gState.cumulativeG > -0.3 * conf.MAX_CUMULATIVE_G) {
 					gAudio.stopHeartBeats();
 				}
 
 				//Display current health status on portrait or die the crew member
-				if (isCriticalCondition(gData)) {
+				if (gState.isCriticalCondition()) {
 					PORTRAIT_AGENT.setKerbalPortraitText(crewMember.name, "CRITICAL\nCONDITION", 0, 0, new Color(1f, 0f, 0f, 1), 4, 2);
-				} else if (isGLocCondition(gData)) {
+				} else if (gState.isGLocCondition()) {
 					PORTRAIT_AGENT.setKerbalPortraitText(crewMember.name, "RESPONSE\nMINIMAL",  ((int)(Planetarium.GetUniversalTime() * 10) % 4 - 2), 0, new Color(1f, 1f, 0f, 1), 0, 1);
 				} else {
 					PORTRAIT_AGENT.disableKerbalPortraitText(crewMember.name);					
 				}
-				if (isDeathCondition(gData)) {
+				if (gState.isDeathCondition()) {
 					crewMember.Die();
 					PORTRAIT_AGENT.disableKerbalPortraitText(crewMember.name);
 					kerbalGDict.Remove(crewMember.name);
@@ -271,7 +275,7 @@ namespace G_Effects
 		}
 		
 		//Damps acceleration peak if it is detected for the current frame.
-		//Most likely the peaks are caused by imperfect physics and need to be damped for not cause unnatural effects on crew.
+		//Most likely the peaks are caused by imperfect physics and need to be damped for not causing unnatural effects on crew.
 		//(Acceleration of a kerbal going EVA is 572G)
 		Vector3d dampAcceleration(Vector3d current_acc, Vector3d prev_acc) {
 			double magnitude = (current_acc - prev_acc).magnitude;
@@ -283,7 +287,7 @@ namespace G_Effects
 			}
 		}
 		
-		//Determines who of among the two crew members is most likely in command 
+		//Determines who among of the two crew members is most likely in command 
 		ProtoCrewMember bestCommander(ProtoCrewMember current, ProtoCrewMember candidate) {
 			if (current == null) {
 				return candidate;
@@ -310,7 +314,9 @@ namespace G_Effects
 			}
 		}
 		
-		void loseConsciousness(ProtoCrewMember crewMember, KerbalGData kerbalGData, bool isCommander, bool outputAllowed) {
+		void loseConsciousness(ProtoCrewMember crewMember, KerbalGState kerbalGData, bool isCommander, bool outputAllowed) {
+			kerbalGData.stopAGSM(0);
+			kerbalGData.resetBreath();
 			kerbalGData.gLocFadeAmount += conf.gLocFadeSpeed;
 			if (kerbalGData.gLocFadeAmount > MAX_GLOC_FADE) {
 				kerbalGData.gLocFadeAmount = MAX_GLOC_FADE;
@@ -328,7 +334,7 @@ namespace G_Effects
 		}
 		
 		
-		void reboundConsciousness(ProtoCrewMember crewMember, KerbalGData kerbalGData, bool isCommander) {
+		void reboundConsciousness(ProtoCrewMember crewMember, KerbalGState kerbalGData, bool isCommander) {
 			kerbalGData.gLocFadeAmount -= conf.gLocFadeSpeed;
 			if (kerbalGData.gLocFadeAmount <= 0) {
 				kerbalGData.gLocFadeAmount = 0;
@@ -346,18 +352,6 @@ namespace G_Effects
 			return false;
 		}
 		
-		bool isGLocCondition(KerbalGData kerbalGData) {
-			return Math.Abs(kerbalGData.cumulativeG) > conf.GLOC_CUMULATIVE_G;			
-		}
-		
-		bool isCriticalCondition(KerbalGData kerbalGData) {
-			return conf.gDeathEnabled && (Math.Abs(kerbalGData.cumulativeG) > (conf.gLocStartCoeff + 0.8 * (conf.gDeathCoeff - conf.gLocStartCoeff)) * conf.MAX_CUMULATIVE_G);
-		}
-		
-		bool isDeathCondition(KerbalGData kerbalGData) {
-			return conf.gDeathEnabled && (kerbalGData.cumulativeG > conf.gDeathCoeff * conf.MAX_CUMULATIVE_G);
-		}
-		
 		bool isRosterDead(ProtoCrewMember crewMember) {
 			return crewMember.rosterStatus.Equals(ProtoCrewMember.RosterStatus.Dead) || crewMember.rosterStatus.Equals(ProtoCrewMember.RosterStatus.Missing);
 		}
@@ -368,13 +362,13 @@ namespace G_Effects
 				return;
 			}
 			
-			KerbalGData kerbalGData;
+			KerbalGState kerbalGData;
 			
 			if ((commander == null) || !kerbalGDict.TryGetValue(commander.name, out kerbalGData)) {
 				return;
 			}
 			
-			double severity = Math.Abs(kerbalGData.cumulativeG) / conf.MAX_CUMULATIVE_G;
+			double severity = kerbalGData.getSeverity();
 			
 			//Apply positive or negative visual effect
 			if (kerbalGData.cumulativeG > 0) {

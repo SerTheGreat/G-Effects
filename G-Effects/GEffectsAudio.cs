@@ -1,5 +1,7 @@
 ﻿using System;
 using UnityEngine;
+using System.Collections;
+using System.Collections.Generic;
 
 namespace G_Effects
 {
@@ -23,28 +25,29 @@ namespace G_Effects
         
         bool heartBeatsPlaying = false;
         float femaleVoicePitch = 1.3f;
+        float breathSoundPitch = 1.8f;
         bool initialized = false;
         bool audioEnabled = true;
         bool boundToTransform = false;
         
-        public GEffectsAudio()
-        {
-        }
-		
+        //This dictionary is used to remember the used audio filters with "true" marking the ones added by this mod   
+        Dictionary<AudioLowPassFilter, bool> filters = new Dictionary<AudioLowPassFilter, bool>();
+        
 		public void initialize(float gruntsVolume, float breathVolume, float heartBeatsVolume, float femaleVoicePitch, float breathSoundPitch) {
-			this.femaleVoicePitch = femaleVoicePitch;
+			this.breathSoundPitch = breathSoundPitch;
+        	this.femaleVoicePitch = femaleVoicePitch;
 			this.gruntsVolume = gruntsVolume;
 			this.breathVolume = breathVolume;
 			
         	if (gruntsVolume > 0.001f) {
 				
         		gruntClips = new AudioClip[] {
-        			GameDatabase.Instance.GetAudioClip("G-Effects/Sounds/grunts/grunt_01"),
-        			GameDatabase.Instance.GetAudioClip("G-Effects/Sounds/grunts/grunt_02"),
-        			GameDatabase.Instance.GetAudioClip("G-Effects/Sounds/grunts/grunt_03"),
+        			//GameDatabase.Instance.GetAudioClip("G-Effects/Sounds/grunts/grunt_01"),
+        			//GameDatabase.Instance.GetAudioClip("G-Effects/Sounds/grunts/grunt_02"),
+        			//GameDatabase.Instance.GetAudioClip("G-Effects/Sounds/grunts/grunt_03"),
         			GameDatabase.Instance.GetAudioClip("G-Effects/Sounds/grunts/grunt_04"),
-        			GameDatabase.Instance.GetAudioClip("G-Effects/Sounds/grunts/grunt_05"),
-        			GameDatabase.Instance.GetAudioClip("G-Effects/Sounds/grunts/grunt_06"),
+        			//GameDatabase.Instance.GetAudioClip("G-Effects/Sounds/grunts/grunt_05"),
+        			//GameDatabase.Instance.GetAudioClip("G-Effects/Sounds/grunts/grunt_06"),
         			GameDatabase.Instance.GetAudioClip("G-Effects/Sounds/grunts/grunt_07"),
         			GameDatabase.Instance.GetAudioClip("G-Effects/Sounds/grunts/grunt_08"),
         			GameDatabase.Instance.GetAudioClip("G-Effects/Sounds/grunts/grunt_09"),
@@ -56,7 +59,7 @@ namespace G_Effects
         			GameDatabase.Instance.GetAudioClip("G-Effects/Sounds/grunts/grunt_15"),
         			GameDatabase.Instance.GetAudioClip("G-Effects/Sounds/grunts/grunt_16"),
         			GameDatabase.Instance.GetAudioClip("G-Effects/Sounds/grunts/grunt_17"),
-        			GameDatabase.Instance.GetAudioClip("G-Effects/Sounds/grunts/grunt_18"),
+        			//GameDatabase.Instance.GetAudioClip("G-Effects/Sounds/grunts/grunt_18"),
         			GameDatabase.Instance.GetAudioClip("G-Effects/Sounds/grunts/grunt_19"),
         			GameDatabase.Instance.GetAudioClip("G-Effects/Sounds/grunts/grunt_20"),
         			GameDatabase.Instance.GetAudioClip("G-Effects/Sounds/grunts/grunt_21"),
@@ -65,13 +68,14 @@ namespace G_Effects
         		};
 				
         		gruntAudio = audioPlayer.AddComponent<AudioSource>();
+        		gruntAudio.bypassListenerEffects = true;
+        		gruntAudio.priority = 20;
         		gruntAudio.volume = GameSettings.VOICE_VOLUME * gruntsVolume;
         		gruntAudio.panLevel = 0f;
         		gruntAudio.dopplerLevel = 0;
         		gruntAudio.bypassEffects = true;
         		gruntAudio.loop = false;
         		gruntAudio.rolloffMode = AudioRolloffMode.Linear;
-        		
 			}
         		        		
         	if (breathVolume > 0.001f) {
@@ -84,6 +88,7 @@ namespace G_Effects
     			};
         			
         		breathAudio = audioPlayer.AddComponent<AudioSource>();
+        		breathAudio.bypassListenerEffects = true;
         		breathAudio.volume = GameSettings.VOICE_VOLUME * breathVolume;
         		breathAudio.panLevel = 0f;
         		breathAudio.dopplerLevel = 0;
@@ -96,11 +101,13 @@ namespace G_Effects
         	if (heartBeatsVolume > 0.001f) {
 				heartClip = GameDatabase.Instance.GetAudioClip("G-Effects/Sounds/heart-beat");
         		heartAudio = audioPlayer.AddComponent<AudioSource>();
+        		heartAudio.bypassListenerEffects = true;
+        		heartAudio.priority = 10;
         		heartAudio.volume = GameSettings.VOICE_VOLUME * heartBeatsVolume;
         		heartAudio.panLevel = 0f;
         		heartAudio.dopplerLevel = 0;
         		heartAudio.bypassEffects = true;
-        		breathAudio.rolloffMode = AudioRolloffMode.Linear;
+        		heartAudio.rolloffMode = AudioRolloffMode.Linear;
         		heartAudio.loop = false;
         	}
 			
@@ -113,29 +120,60 @@ namespace G_Effects
         
         public void bindToTransform(Transform transform) {
         	audioPlayer.transform.SetParent(transform);
-        	//gruntAudio.transform.SetParent(transform);
-        	//breathAudio.transform.SetParent(transform);
-        	//heartAudio.transform.SetParent(transform);
         	boundToTransform = true;
         }
         
-        public bool IsBoundToTransform() {
+        public bool isBoundToTransform() {
         	return boundToTransform;
         }
         
-        public bool IsAudioEnabled() {
+        public bool isAudioEnabled() {
         	return audioEnabled;
         }
         
-        public void SetAudioEnabled(bool enable) {
+        public void setAudioEnabled(bool enable) {
         	audioEnabled = enable;
         	if (!audioEnabled) {
         		stopAllSounds();
         		clearAllSounds();
+        		removeFilters();
         	}
         }
         
-        public int GetGruntsCount() {
+        public void applyFilters(float percent) {
+        	if (!audioEnabled) {
+        		return;
+        	}
+        	AudioListener[] listeners = MonoBehaviour.FindObjectsOfType(typeof(AudioListener)) as AudioListener[];
+        	foreach (AudioListener listener in listeners) {
+        		AudioLowPassFilter filter = listener.gameObject.GetComponent<AudioLowPassFilter>();
+        		if (filter == null) {
+        			filter = listener.gameObject.AddComponent<AudioLowPassFilter>();
+        			filters.Add(filter, true);
+        		} else {
+        			if (!filters.ContainsKey(filter)) {
+        				filters.Add(filter, false);
+        			}
+        		}
+        		filter.cutoffFrequency = 22000 * percent; 
+				filter.lowpassResonaceQ = 1;
+        	}
+        }
+       
+        public void removeFilters() {
+        	foreach (AudioLowPassFilter filter in filters.Keys) {
+        		bool ownFilter = false;
+        		//Destroying only our own filters setting others to nominal value
+        		if (filters.TryGetValue(filter, out ownFilter)) {
+        			MonoBehaviour.Destroy(filter);
+        		} else {
+        			filter.cutoffFrequency = 22000;
+        		}
+        	}
+        	filters.Clear();
+        }
+        
+        public int getGruntsCount() {
         	return gruntClips.Length;
         }
         
@@ -162,11 +200,11 @@ namespace G_Effects
         }
         
         public void playGrunt(bool female, float severity) {
-        	int range = severity < 0 ? GetGruntsCount() : 3; //severity  < 0 means don't use severity based selection
+        	int range = severity < 0 ? getGruntsCount() : 3; //severity  < 0 means don't use severity based selection
         	double rnd = UnityEngine.Random.Range(7f, 30f);
         	if (audioEnabled && (gruntAudio != null) && (Planetarium.GetUniversalTime() - gruntTimer > rnd)) {
         		gruntTimer = Planetarium.GetUniversalTime();
-        		int index = (int)((GetGruntsCount() - range) * severity) + UnityEngine.Random.Range(0, range);
+        		int index = (int)((getGruntsCount() - range) * severity) + UnityEngine.Random.Range(0, range);
         		playAudio(gruntAudio, gruntClips[index], GameSettings.VOICE_VOLUME * gruntsVolume, (female ? femaleVoicePitch : 1.0f));
         	}
         }
@@ -206,10 +244,10 @@ namespace G_Effects
         	heartBeatsPlaying = false;
         }
         
-        //Plays breath sound if it is not playing yet and returns true if success to count successfully played clips
-        public bool tryPlayBreath(bool female, float volume) {
+        //Plays breath sound if it is not playing yet and returns true on success to count successfully played clips
+        public bool tryPlayBreath(bool female, float volume, float c) {
         	if ((breathAudio != null) && !breathAudio.isPlaying && ((gruntAudio == null) || (!gruntAudio.isPlaying))) {
-        		playAudio(breathAudio, breathClips[UnityEngine.Random.Range(0, breathClips.Length-1)], volume, breathAudio.pitch); /*female ? BREATH_PITCH * femaleVoicePitch : BREATH_PITCH*/
+        		playAudio(breathAudio, breathClips[UnityEngine.Random.Range(0, breathClips.Length-1)], volume, breathSoundPitch * c); /*female ? BREATH_PITCH * femaleVoicePitch : BREATH_PITCH*/
       	    	return true;
         	}
         	return false;

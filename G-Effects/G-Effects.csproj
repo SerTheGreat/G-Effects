@@ -7,7 +7,7 @@
     <ProjectGuid>{BC970DA0-60E3-47CF-908E-1791669FB2A7}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>G_Force</RootNamespace>
+    <RootNamespace>G_Effects</RootNamespace>
     <AssemblyName>G-Effects</AssemblyName>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
@@ -41,7 +41,7 @@
     <Compile Include="Configuration.cs" />
     <Compile Include="G-Effects.cs" />
     <Compile Include="GEffectsAudio.cs" />
-    <Compile Include="KerbalGData.cs" />
+    <Compile Include="KerbalGState.cs" />
     <Compile Include="PortraitAgent.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
