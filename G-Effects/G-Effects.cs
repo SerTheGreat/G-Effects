@@ -29,7 +29,6 @@ namespace G_Effects
 	public class G_Effects : MonoBehaviour
 	{
 
-		//TODO check how a control lock and audio filters affect PAUSE 
 		//TODO find a way to disable EVA button on G-LOC
 		//TODO simulate orientation loss on G-LOC
 		
