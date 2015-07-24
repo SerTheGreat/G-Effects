@@ -22,19 +22,22 @@ namespace G_Effects
         public double deltaGTolerance = 3; //The G effects start if the G value is below 1 - tolerance or above 1 + tolerance
         public float gDampingThreshold = 100; //Threshold for damping unnatural acceleration peaks caused by imperfect physics (in G per frame)
         public float gLocStartCoeff = 1.1f; //How much more should our poor kerbal suffer after complete loss of vision to have a G-LOC
-        public float gDeathCoeff = 8.0f; //How much more should a kerbal suffer to die of a sustained over-g
+        public float gDeathCoeff = 20.0f; //How much more should a kerbal suffer to die of a sustained over-g
         public bool gDeathEnabled = false; //Will the critical conditions and g-deaths take place or not
         public bool IVAOnly = false; //If set to true then g-effects will be rendered in IVA mode only
         public String gLocScreenWarning = null; //Text of a warning displayed when a kerbal loses consience. Leave empty to disable.
         public Color redoutRGB = Color.red; //Red, green, blue components of a redout color (in case you are certain that green men must have green blood, for example)
 		public int gLocFadeSpeed = 4; //Speed of fade-out visual effect when a kerbal is losing consciousness
-				//You can disable specific sound effects by specifying 0 volumes.
+		public int breathThresholdTime = 8; //Time threshold in seconds for a kerbal needed to breathe after AGSM 
+		public int maxBreaths = 6; //Maximum possible breath sounds to be played
+		public int minBreaths = 2; //Minimum breath sounds to be played
+		//You can disable specific sound effects by specifying 0 volumes.
 		//Volumes are specified as a fraction of KSP voice volume global setting (less than 1 means quiter, greater than 1 means louder)
 		public float gruntsVolume = 1.0f; //Volume of grunts when a kerbal tries to push blood back in his head on positive and frontal over-G
 		public float breathVolume = 1.0f; //Volume of heavy breath when a kerbal rests after over-G
 		public float heartBeatVolume = 1.0f; //Volume of blood beating in kerbal's ears on negative over-G
 		public float femaleVoicePitch = 1.4f; //How much female kerbals' voice pitch is higher than males' one
-		public float breathSoundPitch = 1.6f; //Pitch of heavy breath's sounds
+		public float breathSoundPitch = 1.8f; //Pitch of heavy breath's sounds
 		public bool enableLogging = false; //Enable this only in debug purposes as it floods the logs very much 
 		
 		//Kerbal personal modifiers are used as multipliers for the gResistance parameter and also affect the speed of G effects accumulation  
@@ -100,6 +103,9 @@ namespace G_Effects
         		}
         	}
         	int.TryParse(nodes[0].GetValue("gLocFadeSpeed"), out gLocFadeSpeed);
+        	int.TryParse(nodes[0].GetValue("breathThresholdTime"), out breathThresholdTime);
+        	int.TryParse(nodes[0].GetValue("maxBreaths"), out maxBreaths);
+        	int.TryParse(nodes[0].GetValue("minBreaths"), out minBreaths);
         	float.TryParse(nodes[0].GetValue("gruntsVolume"), out gruntsVolume);
         	float.TryParse(nodes[0].GetValue("breathVolume"), out breathVolume);
         	float.TryParse(nodes[0].GetValue("heartBeatVolume"), out heartBeatVolume);
