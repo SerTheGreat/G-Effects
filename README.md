@@ -1,6 +1,6 @@
 # G-Effects mod for Kerbal Space Program
 
-Suppoted KSP version: 1.0.4
+Suppoted KSP version: 1.0.5
 
 The work was originally started by russnash37 who gave a permission to take over and extend [his project] (http://forum.kerbalspaceprogram.com/threads/106055)
 
@@ -9,15 +9,18 @@ Pilots are more trained than others, of course.
 
 **The following G-effects are simulated:**
 * Blackouts/redouts
+* Loss of color vision a.k.a greyout
 * Tunnel vision as G rises
 * Kerbals grunt while they perform AGSM (anti-G straining maneuver) and take a heavy breath after
 * Blood beating in kerbal's ears on redout (wear headphones with good bass and you'll feel it)
 * G-LOC (G-induced loss of consciousness)
 * Kerbal deaths of a sustained over-G
-
+ 
 G forces have different severity in four directions: upward, downward, backward, forward, so you may find that a kerbal launched in a rocket stands more G than
 a kerbal piloting a plane upside down on a circular trajectory.
 Kerbal's specialization also affects how much he can stand.
+
+You can use this mod together with [KeepFit](https://github.com/timmersuk/Timmers_KSP/releases) by timmers_uk. In this case kerbal fitness will affect their ability to withstand over G effects (supported by G-Effects v0.2.3+ and KeepFit v0.8.3.3+).
 
 **Installation:**
 
@@ -36,3 +39,4 @@ _The sounds are still a little WIP so you always have an option to disable them 
 **To be implemented:**
 
 - Simulation of loss of orientation after G-LOC
+- Taking into account ship's rotation
