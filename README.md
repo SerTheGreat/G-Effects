@@ -16,11 +16,11 @@ Pilots are more trained than others, of course.
 * G-LOC (G-induced loss of consciousness)
 * Kerbal deaths of a sustained over-G
  
-You can use this mod together with [KeepFit](https://github.com/timmersuk/Timmers_KSP/releases) by timmers_uk. In this case kerbal fitness will affect their ability to withstand over G (supported by G-Effects v0.2.3+ and KeepFit v0.8.3.3+).
-
 G forces have different severity in four directions: upward, downward, backward, forward, so you may find that a kerbal launched in a rocket stands more G than
 a kerbal piloting a plane upside down on a circular trajectory.
 Kerbal's specialization also affects how much he can stand.
+
+You can use this mod together with [KeepFit](https://github.com/timmersuk/Timmers_KSP/releases) by timmers_uk. In this case kerbal fitness will affect their ability to withstand over G effects (supported by G-Effects v0.2.3+ and KeepFit v0.8.3.3+).
 
 **Installation:**
 
