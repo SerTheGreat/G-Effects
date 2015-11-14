@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Collections.Generic;
 using UnityEngine;
@@ -32,6 +31,11 @@ namespace G_Effects
 		//TODO find a way to disable EVA button on G-LOC
 		//TODO simulate orientation loss on G-LOC
 		
+		GEffectsAPIImplementation gEffectsApiImpl = GEffectsAPIImplementation.instance();
+		KeepFit.KeepFitAPI keepFitAPI = new KeepFit.KeepFitAPI();
+		GrayoutCameraFilter flightCameraFilter;
+		GrayoutCameraFilter internalCameraFilter;
+		
 		const string APP_NAME = "G-Effects";
 		const string CONTROL_LOCK_ID = "G_EFFECTS_LOCK";
 		const int MAX_GLOC_FADE = 100;
@@ -57,10 +61,14 @@ namespace G_Effects
 		};
 		
 		//This is for G effects persistance
-		public Dictionary<string, KerbalGState> kerbalGDict = new Dictionary<string, KerbalGState>();
+		Dictionary<string, KerbalGState> kerbalGDict = new Dictionary<string, KerbalGState>();
 		
 		protected void Start()
-		{
+		{	
+			gEffectsApiImpl.setKerbalStates(kerbalGDict);
+			if (keepFitAPI.initialize()) {
+				writeLog("KeepFit mod detected. Working in conjunction.");
+			}
 			/*string path = KSPUtil.ApplicationRootPath.Replace(@"\", "/") + "/GameData/G-Effects/blackout.png";
 			byte[] texture = File.ReadAllBytes(path);
 			blackoutTexture.LoadImage(texture);*/
@@ -121,6 +129,16 @@ namespace G_Effects
 			kerbalGDict.Clear(); //kerbalGDict is for persistence actually but if not cleared the G effects on crew will be "frozen" on switch out/in vessel
 			InputLockManager.RemoveControlLock(CONTROL_LOCK_ID);
 			PORTRAIT_AGENT.enableText(false);
+			flightCameraFilter.setBypass(true);
+			internalCameraFilter.setBypass(true);
+		}
+		
+		GrayoutCameraFilter initializeCameraFilter(Camera camera) {
+			GrayoutCameraFilter filter = camera.gameObject.GetComponent<GrayoutCameraFilter>();
+			if (filter == null) {
+				filter = camera.gameObject.AddComponent<GrayoutCameraFilter>();
+			}
+			return filter;
 		}
 		
 		protected void Awake() {
@@ -130,10 +148,12 @@ namespace G_Effects
 				gAudio.initialize(conf.gruntsVolume, conf.breathVolume, conf.heartBeatVolume, conf.femaleVoicePitch, conf.breathSoundPitch);
 			}
 			
+			flightCameraFilter = initializeCameraFilter(FlightCamera.fetch.mainCamera);
+			internalCameraFilter = initializeCameraFilter(InternalCamera.Instance.camera);
 		}
 		
 		public void Update() {
-			
+
 			if (paused) {
 				return;
 			}
@@ -166,7 +186,7 @@ namespace G_Effects
 			if (commander == null) { //if there's still no commander in the vessel then control lock must be removed because it is probably a probe core that has control at the moment
 				InputLockManager.RemoveControlLock(CONTROL_LOCK_ID);
 			}
-
+			
 			//Calcualte g-effects for each crew member
 			foreach (ProtoCrewMember crewMember in vessel.GetVesselCrew()) {
 
@@ -174,38 +194,47 @@ namespace G_Effects
 					continue;
 				}
 				
+				bool isIVA = CameraManager.Instance.currentCameraMode == CameraManager.CameraMode.IVA;
+
 				playEffects = 
 					crewMember.Equals(commander) &&
-					(!conf.IVAOnly || (CameraManager.Instance.currentCameraMode == CameraManager.CameraMode.IVA)) &&
+					(!conf.IVAOnly || isIVA) &&
 					!MapView.MapIsEnabled;
 				
+				flightCameraFilter.setBypass(isIVA || !playEffects);
+				internalCameraFilter.setBypass(!isIVA || !playEffects);
 				gAudio.setAudioEnabled(playEffects);
 				PORTRAIT_AGENT.enableText(!playEffects);
-
 				KerbalGState gState;
 				if (!kerbalGDict.TryGetValue(crewMember.name, out gState)) {
 					gState = new KerbalGState(conf);
 					kerbalGDict.Add(crewMember.name, gState);
 				}
-				
 				//Calculate modifer by Kerbal individual charateristics
 				float kerbalModifier = 1;
 				conf.traitModifiers.TryGetValue(crewMember.experienceTrait.Title, out kerbalModifier);
 				if (crewMember.gender == ProtoCrewMember.Gender.Female) {
 					kerbalModifier *= conf.femaleModifier;
 				}
+				float? keepFitFitnessModifier = keepFitAPI.getFitnessGeeToleranceModifier(crewMember.name);
+				if (keepFitFitnessModifier != null) {
+					kerbalModifier *= (float)keepFitFitnessModifier;
+				}
 				
 				//Calculate G forces
 				Vector3d gAcceleration = FlightGlobals.getGeeForceAtPosition(vessel.GetWorldPos3D()) - vessel.acceleration;
 				Vector3d cabinAcceleration = vessel.transform.InverseTransformDirection(gAcceleration); //vessel.transform is an active part's transform
-				writeLog("crew=" + crewMember.name + " cabinAcceleration=" + cabinAcceleration);
+				writeDebug("crew=" + crewMember.name + " cabinAcceleration=" + cabinAcceleration);
 				cabinAcceleration = dampAcceleration(cabinAcceleration, gState.previousAcceleration);
 				gState.previousAcceleration = cabinAcceleration;
-				downwardG = cabinAcceleration.z / G_CONST * (downwardG-1 > 0 ? conf.downwardGMultiplier : conf.upwardGMultiplier);
-				forwardG = cabinAcceleration.y / G_CONST * (forwardG > 0 ? conf.forwardGMultiplier : conf.backwardGMultiplier);
+				gState.downwardG = cabinAcceleration.z / G_CONST; //These are true G values
+				gState.forwardG = cabinAcceleration.y / G_CONST;
+				downwardG = gState.downwardG * (gState.downwardG-1 > 0 ? conf.downwardGMultiplier : conf.upwardGMultiplier); //These are modified G values for usage in further calculations
+				forwardG = gState.forwardG * (gState.forwardG > 0 ? conf.forwardGMultiplier : conf.backwardGMultiplier);
 				
 				gState.cumulativeG -= Math.Sign(gState.cumulativeG) * conf.gResistance * kerbalModifier;
 				//gAudio.applyFilter(1 - Mathf.Clamp01((float)(1.25 * Math.Pow(Math.Abs(gData.cumulativeG) / conf.MAX_CUMULATIVE_G, 2) - 0.2)));
+				doGrayout(gState);
 				if ((downwardG > conf.positiveThreshold) || (downwardG < conf.negativeThreshold) || (forwardG > conf.positiveThreshold) || (forwardG < conf.negativeThreshold)) {
 					
 					double rebCompensation = conf.gResistance * kerbalModifier - conf.deltaGTolerance * conf.deltaGTolerance / kerbalModifier; //this is calculated so the rebound is in equilibrium with cumulativeG at the very point of G threshold
@@ -250,8 +279,7 @@ namespace G_Effects
 				}
 				
 				gAudio.applyFilters(1 - gState.gLocFadeAmount / MAX_GLOC_FADE);
-				
-				writeLog("crew=" + crewMember.name + " cumulativeG=" + gState.cumulativeG);
+				writeDebug("crew=" + crewMember.name + " cumulativeG=" + gState.cumulativeG);
 				
 				//If out of danger then stop negative G sound effects
 				if (gState.cumulativeG > -0.3 * conf.MAX_CUMULATIVE_G) {
@@ -314,6 +342,17 @@ namespace G_Effects
 			}
 		}
 		
+		void doGrayout(KerbalGState gState) {
+			float grayout = Mathf.Clamp(2 * gState.getSeverity(), 0f, 1.0f);
+			if (gState.cumulativeG > 0) {
+				flightCameraFilter.setMagnitude(grayout);
+				internalCameraFilter.setMagnitude(grayout);
+			} else {
+				flightCameraFilter.setMagnitude(0.0f);
+				internalCameraFilter.setMagnitude(0.0f);
+			}
+		}
+		
 		void loseConsciousness(ProtoCrewMember crewMember, KerbalGState kerbalGData, bool isCommander, bool outputAllowed) {
 			kerbalGData.stopAGSM(0);
 			kerbalGData.resetBreath();
@@ -363,13 +402,11 @@ namespace G_Effects
 			}
 			
 			KerbalGState kerbalGData;
-			
 			if ((commander == null) || !kerbalGDict.TryGetValue(commander.name, out kerbalGData)) {
 				return;
 			}
 			
 			double severity = kerbalGData.getSeverity();
-			
 			//Apply positive or negative visual effect
 			if (kerbalGData.cumulativeG > 0) {
 				colorOut = Color.black;
@@ -385,7 +422,7 @@ namespace G_Effects
 			colorFill.r = colorOut.r;
 			colorFill.g = colorOut.g;
 			colorFill.b = colorOut.b;
-			colorFill.a = (float)Math.Pow(severity, 4); //this will intensify blackout/redout effect at the very end
+			colorFill.a = (float)Math.Pow(severity, kerbalGData.cumulativeG > 0 ? 8 : 4); //this will intensify blackout/redout effect at the very end
 			
 			//The following will fade out in overlay whatever is diplayed if losing consciousness or fade in on wake up
 			float fade = (float)(kerbalGData.gLocFadeAmount * kerbalGData.gLocFadeAmount) / (float)(MAX_GLOC_FADE * MAX_GLOC_FADE);
@@ -404,13 +441,16 @@ namespace G_Effects
 				GUI.color = Color.white;
 				GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), fillTexture);
 			}
-			
+		}
+		
+		void writeDebug(string text) {
+			if (conf.enableLogging) {
+				writeLog(text);
+			}
 		}
 		
 		void writeLog(string text) {
-			if (conf.enableLogging) {
 				KSPLog.print(APP_NAME + ": " + text);
-			}
 		}
 
 	}
