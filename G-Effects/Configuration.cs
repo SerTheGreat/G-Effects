@@ -24,11 +24,16 @@ namespace G_Effects
         public float gLocStartCoeff = 1.1f; //How much more should our poor kerbal suffer after complete loss of vision to have a G-LOC
         public float gDeathCoeff = 20.0f; //How much more should a kerbal suffer to die of a sustained over-g
         public bool gDeathEnabled = false; //Will the critical conditions and g-deaths take place or not
+        
         public bool IVAOnly = false; //If set to true then g-effects will be rendered in IVA mode only
+        //Greyout is a post-processing effect. It may conflict with other post-processing effects like b/w cameras etc, so disable greyouts if necessary.
+        public bool IVAGreyout = true; //Greyout effect in IVA view
+        public bool mainCamGreyout = false; //mainCam is used in 3rd person view. The effect is disabled by default because it eats up stock reenty and mach visual effects
         public String gLocScreenWarning = null; //Text of a warning displayed when a kerbal loses consience. Leave empty to disable.
         public Color redoutRGB = Color.red; //Red, green, blue components of a redout color (in case you are certain that green men must have green blood, for example)
 		public int gLocFadeSpeed = 4; //Speed of fade-out visual effect when a kerbal is losing consciousness
-		public int breathThresholdTime = 8; //Time threshold in seconds for a kerbal needed to breathe after AGSM 
+		
+		public int breathThresholdTime = 8; //Time threshold in seconds for a kerbal needed to breathe after AGSM
 		public int maxBreaths = 6; //Maximum possible breath sounds to be played
 		public int minBreaths = 2; //Minimum breath sounds to be played
 		//You can disable specific sound effects by specifying 0 volumes.
@@ -38,7 +43,8 @@ namespace G_Effects
 		public float heartBeatVolume = 1.0f; //Volume of blood beating in kerbal's ears on negative over-G
 		public float femaleVoicePitch = 1.4f; //How much female kerbals' voice pitch is higher than males' one
 		public float breathSoundPitch = 1.8f; //Pitch of heavy breath's sounds
-		public bool enableLogging = false; //Enable this only in debug purposes as it floods the logs very much 
+		
+		public bool enableLogging = false; //Enable this only in debug purposes as it floods the logs very much
 		
 		//Kerbal personal modifiers are used as multipliers for the gResistance parameter and also affect the speed of G effects accumulation  
 		public float femaleModifier = 1; //How stronger are females than males
@@ -89,6 +95,8 @@ namespace G_Effects
         	} else KSPLog.print("" + root + " node not found");
         	
         	bool.TryParse(nodes[0].GetValue("IVAOnly"), out IVAOnly);
+        	bool.TryParse(nodes[0].GetValue("IVAGreyout"), out IVAGreyout);
+        	bool.TryParse(nodes[0].GetValue("mainCamGreyout"), out mainCamGreyout);
         	gLocScreenWarning = nodes[0].GetValue("gLocScreenWarning");
         	string redoutColor = nodes[0].GetValue("redoutRGB");
         	string[] redoutComponents;

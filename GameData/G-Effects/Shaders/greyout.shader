@@ -1,9 +1,9 @@
-// Compiled shader for all platforms, uncompressed size: 17.1KB
+// Compiled shader for all platforms, uncompressed size: 15.5KB
 
-Shader "Custom/GrayScale" {
+Shader "G-Effects/Greyout" {
 Properties {
- _MainTex ("", 2D) = "white" {}
- _Magnitude ("Magnitude", Float) = 0
+ _MainTex ("Base (RGB)", 2D) = "white" {}
+ _Magnitude ("Magnitude", Range(0,1)) = 0
 }
 SubShader { 
 
@@ -12,17 +12,17 @@ SubShader {
  //       d3d11 : 6 math
  //    d3d11_9x : 6 math
  //        d3d9 : 8 math
- //        gles : 7 math, 1 texture
- //       gles3 : 7 math, 1 texture
- //   glesdesktop : 7 math, 1 texture
+ //        gles : 6 math, 1 texture
+ //       gles3 : 6 math, 1 texture
+ //   glesdesktop : 6 math, 1 texture
  //       metal : 3 math
  //      opengl : 8 math
  // Stats for Fragment shader:
  //       d3d11 : 3 math, 1 texture
  //    d3d11_9x : 3 math, 1 texture
- //        d3d9 : 11 math, 1 texture
- //       metal : 7 math, 1 texture
- //      opengl : 11 math, 1 texture
+ //        d3d9 : 7 math, 1 texture
+ //       metal : 6 math, 1 texture
+ //      opengl : 7 math, 1 texture
  Pass {
 Program "vp" {
 SubProgram "opengl " {
@@ -77,13 +77,13 @@ Matrix 512 [glstate_matrix_texture0]
 BindCB  "UnityPerDraw" 0
 BindCB  "UnityPerDrawTexMatrices" 1
 "vs_4_0
-eefiecedjlfomejbofdklfcgafioaaodagpgfnjcabaaaaaaciacaaaaadaaaaaa
+eefiecedeedelkdobbmimfefjdhgabnhlefmpcmlabaaaaaaciacaaaaadaaaaaa
 cmaaaaaaiaaaaaaaniaaaaaaejfdeheoemaaaaaaacaaaaaaaiaaaaaadiaaaaaa
 aaaaaaaaaaaaaaaaadaaaaaaaaaaaaaaapapaaaaebaaaaaaaaaaaaaaaaaaaaaa
 adaaaaaaabaaaaaaadadaaaafaepfdejfeejepeoaafeeffiedepepfceeaaklkl
 epfdeheofaaaaaaaacaaaaaaaiaaaaaadiaaaaaaaaaaaaaaabaaaaaaadaaaaaa
 aaaaaaaaapaaaaaaeeaaaaaaaaaaaaaaaaaaaaaaadaaaaaaabaaaaaaadamaaaa
-fdfgfpfagphdgjhegjgpgoaafeeffiedepepfceeaaklklklfdeieefceiabaaaa
+fdfgfpfaepfdejfeejepeoaafeeffiedepepfceeaaklklklfdeieefceiabaaaa
 eaaaabaafcaaaaaafjaaaaaeegiocaaaaaaaaaaaaeaaaaaafjaaaaaeegiocaaa
 abaaaaaaccaaaaaafpaaaaadpcbabaaaaaaaaaaafpaaaaaddcbabaaaabaaaaaa
 ghaaaaaepccabaaaaaaaaaaaabaaaaaagfaaaaaddccabaaaabaaaaaagiaaaaac
@@ -107,7 +107,7 @@ Matrix 512 [glstate_matrix_texture0]
 BindCB  "UnityPerDraw" 0
 BindCB  "UnityPerDrawTexMatrices" 1
 "vs_4_0_level_9_1
-eefiecedkjfdmdegebiaplcnddhiannceeeaamhgabaaaaaaceadaaaaaeaaaaaa
+eefieceddhnbicbokkmhnihbiniipgnpnicndjjjabaaaaaaceadaaaaaeaaaaaa
 daaaaaaaciabaaaahiacaaaammacaaaaebgpgodjpaaaaaaapaaaaaaaaaacpopp
 laaaaaaaeaaaaaaaacaaceaaaaaadmaaaaaadmaaaaaaceaaabaadmaaaaaaaaaa
 aeaaabaaaaaaaaaaabaacaaaacaaafaaaaaaaaaaaaaaaaaaaaacpoppbpaaaaac
@@ -131,11 +131,11 @@ acaaaaaaaiaaaaaadiaaaaaaaaaaaaaaaaaaaaaaadaaaaaaaaaaaaaaapapaaaa
 ebaaaaaaaaaaaaaaaaaaaaaaadaaaaaaabaaaaaaadadaaaafaepfdejfeejepeo
 aafeeffiedepepfceeaaklklepfdeheofaaaaaaaacaaaaaaaiaaaaaadiaaaaaa
 aaaaaaaaabaaaaaaadaaaaaaaaaaaaaaapaaaaaaeeaaaaaaaaaaaaaaaaaaaaaa
-adaaaaaaabaaaaaaadamaaaafdfgfpfagphdgjhegjgpgoaafeeffiedepepfcee
+adaaaaaaabaaaaaaadamaaaafdfgfpfaepfdejfeejepeoaafeeffiedepepfcee
 aaklklkl"
 }
 SubProgram "gles " {
-// Stats: 7 math, 1 textures
+// Stats: 6 math, 1 textures
 "!!GLES
 
 
@@ -168,27 +168,23 @@ void main ()
 #endif
 #ifdef FRAGMENT
 
-uniform lowp float _Magnitude;
 uniform sampler2D _MainTex;
+uniform highp float _Magnitude;
 varying mediump vec2 xlv_TEXCOORD0;
 void main ()
 {
-  lowp vec4 outColor_1;
-  highp float average_2;
+  highp vec4 result_1;
+  highp vec4 color_2;
   lowp vec4 tmpvar_3;
   tmpvar_3 = texture2D (_MainTex, xlv_TEXCOORD0);
-  lowp float tmpvar_4;
-  tmpvar_4 = (((
-    (0.299 * tmpvar_3.x)
+  color_2 = tmpvar_3;
+  result_1.w = color_2.w;
+  result_1.xyz = mix (color_2.xyz, vec3(((
+    (0.299 * color_2.x)
    + 
-    (0.587 * tmpvar_3.y)
-  ) + (0.114 * tmpvar_3.z)) / 3.0);
-  average_2 = tmpvar_4;
-  highp vec4 tmpvar_5;
-  tmpvar_5.xyz = mix (tmpvar_3.xyz, vec3(average_2), vec3(_Magnitude));
-  tmpvar_5.w = tmpvar_3.w;
-  outColor_1 = tmpvar_5;
-  gl_FragData[0] = outColor_1;
+    (0.587 * color_2.y)
+  ) + (0.114 * color_2.z))), vec3(_Magnitude));
+  gl_FragData[0] = result_1;
 }
 
 
@@ -215,7 +211,7 @@ aaaaaaaaaaaaamaeaaaaaaoeabaaaaaaaaaaaaaaaaaaaaaa mov v0.zw, c0
 "
 }
 SubProgram "glesdesktop " {
-// Stats: 7 math, 1 textures
+// Stats: 6 math, 1 textures
 "!!GLES
 
 
@@ -248,27 +244,23 @@ void main ()
 #endif
 #ifdef FRAGMENT
 
-uniform lowp float _Magnitude;
 uniform sampler2D _MainTex;
+uniform highp float _Magnitude;
 varying mediump vec2 xlv_TEXCOORD0;
 void main ()
 {
-  lowp vec4 outColor_1;
-  highp float average_2;
+  highp vec4 result_1;
+  highp vec4 color_2;
   lowp vec4 tmpvar_3;
   tmpvar_3 = texture2D (_MainTex, xlv_TEXCOORD0);
-  lowp float tmpvar_4;
-  tmpvar_4 = (((
-    (0.299 * tmpvar_3.x)
+  color_2 = tmpvar_3;
+  result_1.w = color_2.w;
+  result_1.xyz = mix (color_2.xyz, vec3(((
+    (0.299 * color_2.x)
    + 
-    (0.587 * tmpvar_3.y)
-  ) + (0.114 * tmpvar_3.z)) / 3.0);
-  average_2 = tmpvar_4;
-  highp vec4 tmpvar_5;
-  tmpvar_5.xyz = mix (tmpvar_3.xyz, vec3(average_2), vec3(_Magnitude));
-  tmpvar_5.w = tmpvar_3.w;
-  outColor_1 = tmpvar_5;
-  gl_FragData[0] = outColor_1;
+    (0.587 * color_2.y)
+  ) + (0.114 * color_2.z))), vec3(_Magnitude));
+  gl_FragData[0] = result_1;
 }
 
 
@@ -276,7 +268,7 @@ void main ()
 #endif"
 }
 SubProgram "gles3 " {
-// Stats: 7 math, 1 textures
+// Stats: 6 math, 1 textures
 "!!GLES3#version 300 es
 
 
@@ -312,27 +304,23 @@ void main ()
 
 
 layout(location=0) out mediump vec4 _glesFragData[4];
-uniform lowp float _Magnitude;
 uniform sampler2D _MainTex;
+uniform highp float _Magnitude;
 in mediump vec2 xlv_TEXCOORD0;
 void main ()
 {
-  lowp vec4 outColor_1;
-  highp float average_2;
+  highp vec4 result_1;
+  highp vec4 color_2;
   lowp vec4 tmpvar_3;
   tmpvar_3 = texture (_MainTex, xlv_TEXCOORD0);
-  lowp float tmpvar_4;
-  tmpvar_4 = (((
-    (0.299 * tmpvar_3.x)
+  color_2 = tmpvar_3;
+  result_1.w = color_2.w;
+  result_1.xyz = mix (color_2.xyz, vec3(((
+    (0.299 * color_2.x)
    + 
-    (0.587 * tmpvar_3.y)
-  ) + (0.114 * tmpvar_3.z)) / 3.0);
-  average_2 = tmpvar_4;
-  highp vec4 tmpvar_5;
-  tmpvar_5.xyz = mix (tmpvar_3.xyz, vec3(average_2), vec3(_Magnitude));
-  tmpvar_5.w = tmpvar_3.w;
-  outColor_1 = tmpvar_5;
-  _glesFragData[0] = outColor_1;
+    (0.587 * color_2.y)
+  ) + (0.114 * color_2.z))), vec3(_Magnitude));
+  _glesFragData[0] = result_1;
 }
 
 
@@ -385,49 +373,41 @@ vertex xlatMtlShaderOutput xlatMtlMain (xlatMtlShaderInput _mtl_i [[stage_in]], 
 }
 Program "fp" {
 SubProgram "opengl " {
-// Stats: 11 math, 1 textures
+// Stats: 7 math, 1 textures
 Float 0 [_Magnitude]
 SetTexture 0 [_MainTex] 2D 0
 "!!ARBfp1.0
 PARAM c[2] = { program.local[0],
-		{ 0.11401367, 0.29907227, 0.58691406, 0.33333334 } };
+		{ 0.29899999, 0.58700001, 0.114 } };
 TEMP R0;
 TEMP R1;
 TEX R0, fragment.texcoord[0], texture[0], 2D;
-MUL R1.x, R0.y, c[1].z;
-MAD R1.x, R0, c[1].y, R1;
-MAD R1.x, R0.z, c[1], R1;
-MAD R1.y, R1.x, c[1].w, -R0.x;
-MAD result.color.x, R1.y, c[0], R0;
-MAD R0.x, R1, c[1].w, -R0.y;
-MAD R1.x, R1, c[1].w, -R0.z;
-MAD result.color.y, R0.x, c[0].x, R0;
-MAD result.color.z, R1.x, c[0].x, R0;
+MUL R1.x, R0.y, c[1].y;
+MAD R1.x, R0, c[1], R1;
+MAD R1.x, R0.z, c[1].z, R1;
+ADD R1.xyz, R1.x, -R0;
+MAD result.color.xyz, R1, c[0].x, R0;
 MOV result.color.w, R0;
 END
-# 11 instructions, 2 R-regs
+# 7 instructions, 2 R-regs
 "
 }
 SubProgram "d3d9 " {
-// Stats: 11 math, 1 textures
+// Stats: 7 math, 1 textures
 Float 0 [_Magnitude]
 SetTexture 0 [_MainTex] 2D 0
 "ps_2_0
 dcl_2d s0
-def c1, 0.58691406, 0.29907227, 0.11401367, 0.33333334
+def c1, 0.58700001, 0.29899999, 0.11400000, 0
 dcl t0.xy
-texld r3, t0, s0
-mul_pp r0.x, r3.y, c1
-mad_pp r0.x, r3, c1.y, r0
-mad_pp r0.x, r3.z, c1.z, r0
-mad_pp r2.x, r0, c1.w, -r3
-mad_pp r1.x, r0, c1.w, -r3.y
-mad_pp r0.x, r0, c1.w, -r3.z
-mad_pp r2.x, r2, c0, r3
-mad_pp r2.y, r1.x, c0.x, r3
-mov_pp r2.w, r3
-mad_pp r2.z, r0.x, c0.x, r3
-mov_pp oC0, r2
+texld r1, t0, s0
+mul r0.x, r1.y, c1
+mad r0.x, r1, c1.y, r0
+mad r0.x, r1.z, c1.z, r0
+add r0.xyz, r0.x, -r1
+mov r0.w, r1
+mad r0.xyz, r0, c0.x, r1
+mov oC0, r0
 "
 }
 SubProgram "d3d11 " {
@@ -437,21 +417,21 @@ ConstBuffer "$Globals" 32
 Float 16 [_Magnitude]
 BindCB  "$Globals" 0
 "ps_4_0
-eefiecedncgiodibdhgjdojdfjooplgbmjclmjofabaaaaaaneabaaaaadaaaaaa
+eefiecedkkdnenlinafopjmikmealadafomnloggabaaaaaamaabaaaaadaaaaaa
 cmaaaaaaieaaaaaaliaaaaaaejfdeheofaaaaaaaacaaaaaaaiaaaaaadiaaaaaa
 aaaaaaaaabaaaaaaadaaaaaaaaaaaaaaapaaaaaaeeaaaaaaaaaaaaaaaaaaaaaa
-adaaaaaaabaaaaaaadadaaaafdfgfpfagphdgjhegjgpgoaafeeffiedepepfcee
+adaaaaaaabaaaaaaadadaaaafdfgfpfaepfdejfeejepeoaafeeffiedepepfcee
 aaklklklepfdeheocmaaaaaaabaaaaaaaiaaaaaacaaaaaaaaaaaaaaaaaaaaaaa
-adaaaaaaaaaaaaaaapaaaaaafdfgfpfegbhcghgfheaaklklfdeieefcbeabaaaa
-eaaaaaaaefaaaaaafjaaaaaeegiocaaaaaaaaaaaacaaaaaafkaaaaadaagabaaa
+adaaaaaaaaaaaaaaapaaaaaafdfgfpfegbhcghgfheaaklklfdeieefcaaabaaaa
+eaaaaaaaeaaaaaaafjaaaaaeegiocaaaaaaaaaaaacaaaaaafkaaaaadaagabaaa
 aaaaaaaafibiaaaeaahabaaaaaaaaaaaffffaaaagcbaaaaddcbabaaaabaaaaaa
 gfaaaaadpccabaaaaaaaaaaagiaaaaacacaaaaaaefaaaaajpcaabaaaaaaaaaaa
 egbabaaaabaaaaaaeghobaaaaaaaaaaaaagabaaaaaaaaaaabaaaaaakbcaabaaa
 abaaaaaaegacbaaaaaaaaaaaaceaaaaaihbgjjdokcefbgdpnfhiojdnaaaaaaaa
-dcaaaaanhcaabaaaabaaaaaaagaabaaaabaaaaaaaceaaaaaklkkkkdoklkkkkdo
-klkkkkdoaaaaaaaaegacbaiaebaaaaaaaaaaaaaadcaaaaakhccabaaaaaaaaaaa
-agiacaaaaaaaaaaaabaaaaaaegacbaaaabaaaaaaegacbaaaaaaaaaaadgaaaaaf
-iccabaaaaaaaaaaadkaabaaaaaaaaaaadoaaaaab"
+aaaaaaaihcaabaaaabaaaaaaegacbaiaebaaaaaaaaaaaaaaagaabaaaabaaaaaa
+dcaaaaakhccabaaaaaaaaaaaagiacaaaaaaaaaaaabaaaaaaegacbaaaabaaaaaa
+egacbaaaaaaaaaaadgaaaaaficcabaaaaaaaaaaadkaabaaaaaaaaaaadoaaaaab
+"
 }
 SubProgram "d3d11_9x " {
 // Stats: 3 math, 1 textures
@@ -460,31 +440,28 @@ ConstBuffer "$Globals" 32
 Float 16 [_Magnitude]
 BindCB  "$Globals" 0
 "ps_4_0_level_9_1
-eefiecedicmjhpgphioiffnjccpichelbbagpeniabaaaaaabiadaaaaaeaaaaaa
-daaaaaaahaabaaaaimacaaaaoeacaaaaebgpgodjdiabaaaadiabaaaaaaacpppp
-aeabaaaadeaaaaaaabaaciaaaaaadeaaaaaadeaaabaaceaaaaaadeaaaaaaaaaa
+eefiecedfcjlhdljbpognhfmhmmbofnieimhlogeabaaaaaakmacaaaaaeaaaaaa
+daaaaaaabiabaaaacaacaaaahiacaaaaebgpgodjoaaaaaaaoaaaaaaaaaacpppp
+kmaaaaaadeaaaaaaabaaciaaaaaadeaaaaaadeaaabaaceaaaaaadeaaaaaaaaaa
 aaaaabaaabaaaaaaaaaaaaaaaaacppppfbaaaaafabaaapkakcefbgdpihbgjjdo
-nfhiojdnklkkkkdobpaaaaacaaaaaaiaaaaacdlabpaaaaacaaaaaajaaaaiapka
-ecaaaaadaaaacpiaaaaaoelaaaaioekaafaaaaadabaaciiaaaaaffiaabaaaaka
-aeaaaaaeabaacbiaaaaaaaiaabaaffkaabaappiaaeaaaaaeabaacbiaaaaakkia
-abaakkkaabaaaaiaaeaaaaaeabaaaciaabaaaaiaabaappkaaaaaaaibaeaaaaae
-aaaacbiaaaaaaakaabaaffiaaaaaaaiaaeaaaaaeabaaaciaabaaaaiaabaappka
-aaaaffibaeaaaaaeabaaabiaabaaaaiaabaappkaaaaakkibaeaaaaaeaaaaceia
-aaaaaakaabaaaaiaaaaakkiaaeaaaaaeaaaacciaaaaaaakaabaaffiaaaaaffia
-abaaaaacaaaicpiaaaaaoeiappppaaaafdeieefcbeabaaaaeaaaaaaaefaaaaaa
-fjaaaaaeegiocaaaaaaaaaaaacaaaaaafkaaaaadaagabaaaaaaaaaaafibiaaae
-aahabaaaaaaaaaaaffffaaaagcbaaaaddcbabaaaabaaaaaagfaaaaadpccabaaa
-aaaaaaaagiaaaaacacaaaaaaefaaaaajpcaabaaaaaaaaaaaegbabaaaabaaaaaa
-eghobaaaaaaaaaaaaagabaaaaaaaaaaabaaaaaakbcaabaaaabaaaaaaegacbaaa
-aaaaaaaaaceaaaaaihbgjjdokcefbgdpnfhiojdnaaaaaaaadcaaaaanhcaabaaa
-abaaaaaaagaabaaaabaaaaaaaceaaaaaklkkkkdoklkkkkdoklkkkkdoaaaaaaaa
-egacbaiaebaaaaaaaaaaaaaadcaaaaakhccabaaaaaaaaaaaagiacaaaaaaaaaaa
-abaaaaaaegacbaaaabaaaaaaegacbaaaaaaaaaaadgaaaaaficcabaaaaaaaaaaa
-dkaabaaaaaaaaaaadoaaaaabejfdeheofaaaaaaaacaaaaaaaiaaaaaadiaaaaaa
-aaaaaaaaabaaaaaaadaaaaaaaaaaaaaaapaaaaaaeeaaaaaaaaaaaaaaaaaaaaaa
-adaaaaaaabaaaaaaadadaaaafdfgfpfagphdgjhegjgpgoaafeeffiedepepfcee
-aaklklklepfdeheocmaaaaaaabaaaaaaaiaaaaaacaaaaaaaaaaaaaaaaaaaaaaa
-adaaaaaaaaaaaaaaapaaaaaafdfgfpfegbhcghgfheaaklkl"
+nfhiojdnaaaaaaaabpaaaaacaaaaaaiaaaaacdlabpaaaaacaaaaaajaaaaiapka
+ecaaaaadaaaaapiaaaaaoelaaaaioekaafaaaaadabaaaiiaaaaaffiaabaaaaka
+aeaaaaaeabaaabiaaaaaaaiaabaaffkaabaappiaaeaaaaaeabaaabiaaaaakkia
+abaakkkaabaaaaiabcaaaaaeacaaahiaaaaaaakaabaaaaiaaaaaoeiaabaaaaac
+acaaaiiaaaaappiaabaaaaacaaaiapiaacaaoeiappppaaaafdeieefcaaabaaaa
+eaaaaaaaeaaaaaaafjaaaaaeegiocaaaaaaaaaaaacaaaaaafkaaaaadaagabaaa
+aaaaaaaafibiaaaeaahabaaaaaaaaaaaffffaaaagcbaaaaddcbabaaaabaaaaaa
+gfaaaaadpccabaaaaaaaaaaagiaaaaacacaaaaaaefaaaaajpcaabaaaaaaaaaaa
+egbabaaaabaaaaaaeghobaaaaaaaaaaaaagabaaaaaaaaaaabaaaaaakbcaabaaa
+abaaaaaaegacbaaaaaaaaaaaaceaaaaaihbgjjdokcefbgdpnfhiojdnaaaaaaaa
+aaaaaaaihcaabaaaabaaaaaaegacbaiaebaaaaaaaaaaaaaaagaabaaaabaaaaaa
+dcaaaaakhccabaaaaaaaaaaaagiacaaaaaaaaaaaabaaaaaaegacbaaaabaaaaaa
+egacbaaaaaaaaaaadgaaaaaficcabaaaaaaaaaaadkaabaaaaaaaaaaadoaaaaab
+ejfdeheofaaaaaaaacaaaaaaaiaaaaaadiaaaaaaaaaaaaaaabaaaaaaadaaaaaa
+aaaaaaaaapaaaaaaeeaaaaaaaaaaaaaaaaaaaaaaadaaaaaaabaaaaaaadadaaaa
+fdfgfpfaepfdejfeejepeoaafeeffiedepepfceeaaklklklepfdeheocmaaaaaa
+abaaaaaaaiaaaaaacaaaaaaaaaaaaaaaaaaaaaaaadaaaaaaaaaaaaaaapaaaaaa
+fdfgfpfegbhcghgfheaaklkl"
 }
 SubProgram "gles " {
 "!!GLES"
@@ -493,28 +470,19 @@ SubProgram "flash " {
 Float 0 [_Magnitude]
 SetTexture 0 [_MainTex] 2D 0
 "agal_ps
-c1 0.586914 0.299072 0.114014 0.333333
+c1 0.587 0.299 0.114 0.0
 [bc]
-ciaaaaaaadaaapacaaaaaaoeaeaaaaaaaaaaaaaaafaababb tex r3, v0, s0 <2d wrap linear point>
-adaaaaaaaaaaabacadaaaaffacaaaaaaabaaaaoeabaaaaaa mul r0.x, r3.y, c1
-adaaaaaaaaaaacacadaaaaaaacaaaaaaabaaaaffabaaaaaa mul r0.y, r3.x, c1.y
-abaaaaaaaaaaabacaaaaaaffacaaaaaaaaaaaaaaacaaaaaa add r0.x, r0.y, r0.x
-adaaaaaaabaaabacadaaaakkacaaaaaaabaaaakkabaaaaaa mul r1.x, r3.z, c1.z
-abaaaaaaaaaaabacabaaaaaaacaaaaaaaaaaaaaaacaaaaaa add r0.x, r1.x, r0.x
-adaaaaaaabaaacacaaaaaaaaacaaaaaaabaaaappabaaaaaa mul r1.y, r0.x, c1.w
-acaaaaaaacaaabacabaaaaffacaaaaaaadaaaaaaacaaaaaa sub r2.x, r1.y, r3.x
-adaaaaaaaeaaabacaaaaaaaaacaaaaaaabaaaappabaaaaaa mul r4.x, r0.x, c1.w
-acaaaaaaabaaabacaeaaaaaaacaaaaaaadaaaaffacaaaaaa sub r1.x, r4.x, r3.y
-adaaaaaaaeaaabacaaaaaaaaacaaaaaaabaaaappabaaaaaa mul r4.x, r0.x, c1.w
-acaaaaaaaaaaabacaeaaaaaaacaaaaaaadaaaakkacaaaaaa sub r0.x, r4.x, r3.z
-adaaaaaaacaaabacacaaaaaaacaaaaaaaaaaaaoeabaaaaaa mul r2.x, r2.x, c0
-abaaaaaaacaaabacacaaaaaaacaaaaaaadaaaaaaacaaaaaa add r2.x, r2.x, r3.x
-adaaaaaaacaaacacabaaaaaaacaaaaaaaaaaaaaaabaaaaaa mul r2.y, r1.x, c0.x
-abaaaaaaacaaacacacaaaaffacaaaaaaadaaaaffacaaaaaa add r2.y, r2.y, r3.y
-aaaaaaaaacaaaiacadaaaappacaaaaaaaaaaaaaaaaaaaaaa mov r2.w, r3.w
-adaaaaaaacaaaeacaaaaaaaaacaaaaaaaaaaaaaaabaaaaaa mul r2.z, r0.x, c0.x
-abaaaaaaacaaaeacacaaaakkacaaaaaaadaaaakkacaaaaaa add r2.z, r2.z, r3.z
-aaaaaaaaaaaaapadacaaaaoeacaaaaaaaaaaaaaaaaaaaaaa mov o0, r2
+ciaaaaaaabaaapacaaaaaaoeaeaaaaaaaaaaaaaaafaababb tex r1, v0, s0 <2d wrap linear point>
+adaaaaaaaaaaabacabaaaaffacaaaaaaabaaaaoeabaaaaaa mul r0.x, r1.y, c1
+adaaaaaaacaaabacabaaaaaaacaaaaaaabaaaaffabaaaaaa mul r2.x, r1.x, c1.y
+abaaaaaaaaaaabacacaaaaaaacaaaaaaaaaaaaaaacaaaaaa add r0.x, r2.x, r0.x
+adaaaaaaacaaabacabaaaakkacaaaaaaabaaaakkabaaaaaa mul r2.x, r1.z, c1.z
+abaaaaaaaaaaabacacaaaaaaacaaaaaaaaaaaaaaacaaaaaa add r0.x, r2.x, r0.x
+acaaaaaaaaaaahacaaaaaaaaacaaaaaaabaaaakeacaaaaaa sub r0.xyz, r0.x, r1.xyzz
+aaaaaaaaaaaaaiacabaaaappacaaaaaaaaaaaaaaaaaaaaaa mov r0.w, r1.w
+adaaaaaaaaaaahacaaaaaakeacaaaaaaaaaaaaaaabaaaaaa mul r0.xyz, r0.xyzz, c0.x
+abaaaaaaaaaaahacaaaaaakeacaaaaaaabaaaakeacaaaaaa add r0.xyz, r0.xyzz, r1.xyzz
+aaaaaaaaaaaaapadaaaaaaoeacaaaaaaaaaaaaaaaaaaaaaa mov o0, r0
 "
 }
 SubProgram "glesdesktop " {
@@ -524,10 +492,10 @@ SubProgram "gles3 " {
 "!!GLES3"
 }
 SubProgram "metal " {
-// Stats: 7 math, 1 textures
+// Stats: 6 math, 1 textures
 SetTexture 0 [_MainTex] 2D 0
-ConstBuffer "$Globals" 2
-ScalarHalf 0 [_Magnitude]
+ConstBuffer "$Globals" 4
+Float 0 [_Magnitude]
 "metal_fs
 #include <metal_stdlib>
 using namespace metal;
@@ -538,28 +506,24 @@ struct xlatMtlShaderOutput {
   half4 _glesFragData_0 [[color(0)]];
 };
 struct xlatMtlShaderUniform {
-  half _Magnitude;
+  float _Magnitude;
 };
 fragment xlatMtlShaderOutput xlatMtlMain (xlatMtlShaderInput _mtl_i [[stage_in]], constant xlatMtlShaderUniform& _mtl_u [[buffer(0)]]
   ,   texture2d<half> _MainTex [[texture(0)]], sampler _mtlsmp__MainTex [[sampler(0)]])
 {
   xlatMtlShaderOutput _mtl_o;
-  half4 outColor_1;
-  float average_2;
+  float4 result_1;
+  float4 color_2;
   half4 tmpvar_3;
   tmpvar_3 = _MainTex.sample(_mtlsmp__MainTex, (float2)(_mtl_i.xlv_TEXCOORD0));
-  half tmpvar_4;
-  tmpvar_4 = (((
-    ((half)0.299 * tmpvar_3.x)
+  color_2 = float4(tmpvar_3);
+  result_1.w = color_2.w;
+  result_1.xyz = mix (color_2.xyz, float3(((
+    (0.299 * color_2.x)
    + 
-    ((half)0.587 * tmpvar_3.y)
-  ) + ((half)0.114 * tmpvar_3.z)) / (half)3.0);
-  average_2 = float(tmpvar_4);
-  float4 tmpvar_5;
-  tmpvar_5.xyz = mix ((float3)tmpvar_3.xyz, float3(average_2), (float3)half3(_mtl_u._Magnitude));
-  tmpvar_5.w = float(tmpvar_3.w);
-  outColor_1 = half4(tmpvar_5);
-  _mtl_o._glesFragData_0 = outColor_1;
+    (0.587 * color_2.y)
+  ) + (0.114 * color_2.z))), float3(_mtl_u._Magnitude));
+  _mtl_o._glesFragData_0 = half4(result_1);
   return _mtl_o;
 }
 
