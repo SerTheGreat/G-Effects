@@ -27,14 +27,14 @@ namespace G_Effects
 	[KSPAddon(KSPAddon.Startup.Flight, false)]
 	public class G_Effects : MonoBehaviour
 	{
-
+		
 		//TODO find a way to disable EVA button on G-LOC
 		//TODO simulate orientation loss on G-LOC
 		
 		GEffectsAPIImplementation gEffectsApiImpl = GEffectsAPIImplementation.instance();
 		KeepFit.KeepFitAPI keepFitAPI = new KeepFit.KeepFitAPI();
-		GrayoutCameraFilter flightCameraFilter;
-		GrayoutCameraFilter internalCameraFilter;
+		GreyoutCameraFilter flightCameraFilter;
+		GreyoutCameraFilter internalCameraFilter;
 		
 		const string APP_NAME = "G-Effects";
 		const string CONTROL_LOCK_ID = "G_EFFECTS_LOCK";
@@ -49,6 +49,7 @@ namespace G_Effects
 		double downwardG;
 		double forwardG;
 		bool playEffects = false;
+		bool greyOutAllowed = false;
 		bool paused = false;
 		readonly static PortraitAgent PORTRAIT_AGENT = new PortraitAgent();
 
@@ -69,9 +70,6 @@ namespace G_Effects
 			if (keepFitAPI.initialize()) {
 				writeLog("KeepFit mod detected. Working in conjunction.");
 			}
-			/*string path = KSPUtil.ApplicationRootPath.Replace(@"\", "/") + "/GameData/G-Effects/blackout.png";
-			byte[] texture = File.ReadAllBytes(path);
-			blackoutTexture.LoadImage(texture);*/
 			if (blackoutTexture == null) {
 				blackoutTexture = GameDatabase.Instance.GetTexture("G-Effects/blackout", false);
 			}
@@ -82,8 +80,6 @@ namespace G_Effects
 			GameEvents.onGameUnpause.Add(onUnPause);
 			GameEvents.onCrewKilled.Add(onCrewKilled);
 			GameEvents.onVesselChange.Add(onVesselChange);
-			// Add another rendering queue hook for the GUI
-			//RenderingManager.AddToPostDrawQueue(4, new Callback(drawGUI));
 			PORTRAIT_AGENT.Start();
 		}
 		
@@ -133,14 +129,6 @@ namespace G_Effects
 			internalCameraFilter.setBypass(true);
 		}
 		
-		GrayoutCameraFilter initializeCameraFilter(Camera camera) {
-			GrayoutCameraFilter filter = camera.gameObject.GetComponent<GrayoutCameraFilter>();
-			if (filter == null) {
-				filter = camera.gameObject.AddComponent<GrayoutCameraFilter>();
-			}
-			return filter;
-		}
-		
 		protected void Awake() {
 			conf.loadConfiguration(APP_NAME.ToUpper());
 			
@@ -148,8 +136,8 @@ namespace G_Effects
 				gAudio.initialize(conf.gruntsVolume, conf.breathVolume, conf.heartBeatVolume, conf.femaleVoicePitch, conf.breathSoundPitch);
 			}
 			
-			flightCameraFilter = initializeCameraFilter(FlightCamera.fetch.mainCamera);
-			internalCameraFilter = initializeCameraFilter(InternalCamera.Instance.camera);
+			flightCameraFilter = GreyoutCameraFilter.initializeCameraFilter(FlightCamera.fetch.mainCamera, conf.mainCamGreyout);
+			internalCameraFilter = GreyoutCameraFilter.initializeCameraFilter(InternalCamera.Instance.camera, conf.IVAGreyout);
 		}
 		
 		public void Update() {
@@ -201,6 +189,7 @@ namespace G_Effects
 					(!conf.IVAOnly || isIVA) &&
 					!MapView.MapIsEnabled;
 				
+				greyOutAllowed = isIVA && conf.IVAGreyout || !isIVA && conf.mainCamGreyout;
 				flightCameraFilter.setBypass(isIVA || !playEffects);
 				internalCameraFilter.setBypass(!isIVA || !playEffects);
 				gAudio.setAudioEnabled(playEffects);
@@ -234,7 +223,7 @@ namespace G_Effects
 				
 				gState.cumulativeG -= Math.Sign(gState.cumulativeG) * conf.gResistance * kerbalModifier;
 				//gAudio.applyFilter(1 - Mathf.Clamp01((float)(1.25 * Math.Pow(Math.Abs(gData.cumulativeG) / conf.MAX_CUMULATIVE_G, 2) - 0.2)));
-				doGrayout(gState);
+				doGreyout(gState);
 				if ((downwardG > conf.positiveThreshold) || (downwardG < conf.negativeThreshold) || (forwardG > conf.positiveThreshold) || (forwardG < conf.negativeThreshold)) {
 					
 					double rebCompensation = conf.gResistance * kerbalModifier - conf.deltaGTolerance * conf.deltaGTolerance / kerbalModifier; //this is calculated so the rebound is in equilibrium with cumulativeG at the very point of G threshold
@@ -342,17 +331,6 @@ namespace G_Effects
 			}
 		}
 		
-		void doGrayout(KerbalGState gState) {
-			float grayout = Mathf.Clamp(2 * gState.getSeverity(), 0f, 1.0f);
-			if (gState.cumulativeG > 0) {
-				flightCameraFilter.setMagnitude(grayout);
-				internalCameraFilter.setMagnitude(grayout);
-			} else {
-				flightCameraFilter.setMagnitude(0.0f);
-				internalCameraFilter.setMagnitude(0.0f);
-			}
-		}
-		
 		void loseConsciousness(ProtoCrewMember crewMember, KerbalGState kerbalGData, bool isCommander, bool outputAllowed) {
 			kerbalGData.stopAGSM(0);
 			kerbalGData.resetBreath();
@@ -395,6 +373,17 @@ namespace G_Effects
 			return crewMember.rosterStatus.Equals(ProtoCrewMember.RosterStatus.Dead) || crewMember.rosterStatus.Equals(ProtoCrewMember.RosterStatus.Missing);
 		}
 		
+		void doGreyout(KerbalGState gState) {
+			if (gState.cumulativeG > 0) {
+				float greyout = Mathf.Pow(Mathf.Clamp(gState.getSeverity() / 0.4f, 0f, 1.0f), 2); //Severity is divided by a percent of the total blackout at which greyout should be complete
+				flightCameraFilter.setMagnitude(greyout);
+				internalCameraFilter.setMagnitude(greyout);
+			} else {
+				flightCameraFilter.setMagnitude(0.0f);
+				internalCameraFilter.setMagnitude(0.0f);
+			}
+		}
+		
 		void drawGEffects()
 		{
 			if (!playEffects) {
@@ -422,7 +411,7 @@ namespace G_Effects
 			colorFill.r = colorOut.r;
 			colorFill.g = colorOut.g;
 			colorFill.b = colorOut.b;
-			colorFill.a = (float)Math.Pow(severity, kerbalGData.cumulativeG > 0 ? 8 : 4); //this will intensify blackout/redout effect at the very end
+			colorFill.a = (float)Math.Pow(severity, 4); //this will intensify blackout/redout effect at the very end
 			
 			//The following will fade out in overlay whatever is diplayed if losing consciousness or fade in on wake up
 			float fade = (float)(kerbalGData.gLocFadeAmount * kerbalGData.gLocFadeAmount) / (float)(MAX_GLOC_FADE * MAX_GLOC_FADE);

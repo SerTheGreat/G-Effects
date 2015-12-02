@@ -7,18 +7,35 @@ namespace G_Effects
 	/// <summary>
 	/// Camera filter that provides picture gray out effect
 	/// </summary>
-	public class GrayoutCameraFilter : MonoBehaviour
+	public class GreyoutCameraFilter : MonoBehaviour
 	{
 		
 		static Material material;
 		bool bypass = true;
 		float magnitude = 0;
 		
-		public GrayoutCameraFilter()
+		public GreyoutCameraFilter() : this(true) {
+		}
+		
+		//In case actualEffect = false the filter is just a dummy 
+		public GreyoutCameraFilter(bool actualEffect)
 		{
-			if (material == null) {
-				material = loadShader("grayout.shader");
+			if (actualEffect && material == null) {
+				material = loadShader("greyout.shader");
 			}
+		}
+		
+		public static GreyoutCameraFilter initializeCameraFilter(Camera camera, bool actualFilter) {
+			GreyoutCameraFilter filter;		
+			if (actualFilter) {
+				filter = camera.gameObject.GetComponent<GreyoutCameraFilter>();
+				if (filter == null) {
+					filter = camera.gameObject.AddComponent<GreyoutCameraFilter>();
+				}
+			} else {
+				filter = new GreyoutCameraFilter(false);
+			}
+			return filter;
 		}
 		
 		public void setBypass(bool bypass) {
