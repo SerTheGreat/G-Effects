@@ -180,17 +180,17 @@ namespace G_Effects
 					if (pText.alphaBlendMode == 0) {
 						GUI.color = new Color(0,0,0,0f);
 					} else if (pText.alphaBlendMode == 1) {
-						GUI.color = new Color(0,0,0,0.8f);
+						GUI.color = new Color(0,0,0,0.85f);
 					} else {
 						GUI.color = new Color(0,0,0,1f);
 					}
-					GUI.DrawTexture(new Rect(screenPos.x, screenPos.y, manager.AvatarSize - 1, manager.AvatarSize), blackTexture, ScaleMode.ScaleToFit, true);
+					GUI.DrawTexture(new Rect(leftOffset, screenPos.y, manager.AvatarSize - 1, manager.AvatarSize), blackTexture, ScaleMode.ScaleToFit, true);
 				}
 				/*foreach (Font f in Resources.FindObjectsOfTypeAll (typeof (Font))) {
 					ScreenMessages.PostScreenMessage(f.name);
 				}*/
 				if (!(pText.blinkFreq > 0) || ((long)(Planetarium.GetUniversalTime() * 1000f) % (1000 / pText.blinkFreq) < (1000 / pText.blinkFreq) / 2) ){
-					printLabel(pText.text, pText.leftOffset, pText.topOffset, pText.textColor);
+					printLabel(pText.text, leftOffset + pText.leftOffset, pText.topOffset, pText.textColor);
 				}
 				
 			}
@@ -201,7 +201,7 @@ namespace G_Effects
 			string[] lines = text.Split('\n');
 			for (int i=0; i < lines.Length; i++) {
 				float lineOffset = (i - lines.Length / 2) * LINE_HEIGHT;
-				Rect r = new Rect(screenPos.x + leftOffset, screenPos.y + manager.AvatarSize / 2 + topOffset + lineOffset, manager.AvatarSize, LINE_HEIGHT);
+				Rect r = new Rect(leftOffset, screenPos.y + manager.AvatarSize / 2 + topOffset + lineOffset, manager.AvatarSize, LINE_HEIGHT);
 				GUI.color = color;
 				GUI.Label(r, lines[i], centeredLabelStyle);
 			}
