@@ -78,7 +78,9 @@ namespace G_Effects
 			RenderingManager.AddToPostDrawQueue(3, new Callback(drawGEffects));
 			GameEvents.onGamePause.Add(onPause);
 			GameEvents.onGameUnpause.Add(onUnPause);
-			GameEvents.onCrewKilled.Add(onCrewKilled);
+			GameEvents.onCrash.Add(onCrewKilled);
+			GameEvents.onCrashSplashdown.Add(onCrewKilled);
+			//GameEvents.onCrewKilled.Add(onCrewKilled);
 			GameEvents.onVesselChange.Add(onVesselChange);
 			PORTRAIT_AGENT.Start();
 		}
@@ -87,7 +89,9 @@ namespace G_Effects
 			RenderingManager.RemoveFromPostDrawQueue(3, new Callback(drawGEffects));
 			GameEvents.onGamePause.Remove(onPause);
 			GameEvents.onGameUnpause.Remove(onUnPause);
-			GameEvents.onCrewKilled.Remove(onCrewKilled);
+			GameEvents.onCrash.Remove(onCrewKilled);
+			GameEvents.onCrashSplashdown.Remove(onCrewKilled);
+			//GameEvents.onCrewKilled.Remove(onCrewKilled);
 			GameEvents.onVesselChange.Remove(onVesselChange);
 			PORTRAIT_AGENT.OnDestroy();
 		}
@@ -103,21 +107,25 @@ namespace G_Effects
 		}
 		
 		void onPause() {
+			paused = true;
 			gAudio.pauseAllSounds(true);
 		}
 		
 		void onUnPause() {
+			paused = false;
 			gAudio.pauseAllSounds(false);
 		}
 		
 		void onCrewKilled(EventReport eventReport) {
 			resetValues();
 			gAudio.stopAllSounds();
+			gAudio.removeFilters();
 		}
 		
 		void onVesselChange(Vessel vessel) {
 			resetValues();
 			gAudio.stopAllSounds();
+			gAudio.removeFilters();
 		}
 		
 		void resetValues() {
@@ -170,10 +178,22 @@ namespace G_Effects
 						commander = bestCommander(commander, crewMember);
 					}
 				}
-			}
+			}//!!(Collision)(referencePart.currentCollisions.ToArray()[0]).
 			if (commander == null) { //if there's still no commander in the vessel then control lock must be removed because it is probably a probe core that has control at the moment
 				InputLockManager.RemoveControlLock(CONTROL_LOCK_ID);
 			}
+			
+			bool isIVA = CameraManager.Instance.currentCameraMode == CameraManager.CameraMode.IVA;
+
+			playEffects = (commander != null) &&
+				(!conf.IVAOnly || isIVA) &&
+				!MapView.MapIsEnabled;
+			
+			greyOutAllowed = isIVA && conf.IVAGreyout || !isIVA && conf.mainCamGreyout;
+			flightCameraFilter.setBypass(isIVA || !playEffects);
+			internalCameraFilter.setBypass(!isIVA || !playEffects);
+			gAudio.setAudioEnabled(playEffects);
+			PORTRAIT_AGENT.enableText(!playEffects);
 			
 			//Calcualte g-effects for each crew member
 			foreach (ProtoCrewMember crewMember in vessel.GetVesselCrew()) {
@@ -182,18 +202,6 @@ namespace G_Effects
 					continue;
 				}
 				
-				bool isIVA = CameraManager.Instance.currentCameraMode == CameraManager.CameraMode.IVA;
-
-				playEffects = 
-					crewMember.Equals(commander) &&
-					(!conf.IVAOnly || isIVA) &&
-					!MapView.MapIsEnabled;
-				
-				greyOutAllowed = isIVA && conf.IVAGreyout || !isIVA && conf.mainCamGreyout;
-				flightCameraFilter.setBypass(isIVA || !playEffects);
-				internalCameraFilter.setBypass(!isIVA || !playEffects);
-				gAudio.setAudioEnabled(playEffects);
-				PORTRAIT_AGENT.enableText(!playEffects);
 				KerbalGState gState;
 				if (!kerbalGDict.TryGetValue(crewMember.name, out gState)) {
 					gState = new KerbalGState(conf);
@@ -228,14 +236,14 @@ namespace G_Effects
 					
 					double rebCompensation = conf.gResistance * kerbalModifier - conf.deltaGTolerance * conf.deltaGTolerance / kerbalModifier; //this is calculated so the rebound is in equilibrium with cumulativeG at the very point of G threshold
 					gState.cumulativeG += Math.Sign(downwardG-1+forwardG) * rebCompensation + (Math.Abs(downwardG-1)*(downwardG-1) + Math.Abs(forwardG) * forwardG) / kerbalModifier;
-					
+
 					gAudio.stopBreath();
 					gState.resetBreath();
 					
 					if (gState.isGLocCondition()) {
 						loseConsciousness(crewMember, gState, crewMember.Equals(commander), playEffects);
 						gAudio.stopHeartBeats();
-					} else {
+					} else if (crewMember.Equals(commander)) {
 						//Positive and frontal G sound effects
 						if( ((downwardG > conf.positiveThreshold) || (forwardG > conf.positiveThreshold)) && (gState.cumulativeG > 0.1 * conf.MAX_CUMULATIVE_G)) {
 							//gData.needBreath = Mathf.Max(gData.needBreath, (gData.cumulativeG > 0.6 * conf.MAX_CUMULATIVE_G) ? (int)(MAX_BREATHS * gData.getSeverity() - 1) : 0);
@@ -267,7 +275,9 @@ namespace G_Effects
 					}
 				}
 				
-				gAudio.applyFilters(1 - gState.gLocFadeAmount / MAX_GLOC_FADE);
+				if (crewMember.Equals(commander)) {
+					gAudio.applyFilters(1 - gState.gLocFadeAmount / MAX_GLOC_FADE);
+				}
 				writeDebug("crew=" + crewMember.name + " cumulativeG=" + gState.cumulativeG);
 				
 				//If out of danger then stop negative G sound effects
@@ -293,7 +303,7 @@ namespace G_Effects
 		
 		//Damps acceleration peak if it is detected for the current frame.
 		//Most likely the peaks are caused by imperfect physics and need to be damped for not causing unnatural effects on crew.
-		//(Acceleration of a kerbal going EVA is 572G)
+		//(Acceleration of a kerbal going EVA is about 44G)
 		Vector3d dampAcceleration(Vector3d current_acc, Vector3d prev_acc) {
 			double magnitude = (current_acc - prev_acc).magnitude;
 			if ((current_acc - prev_acc).magnitude > conf.gDampingThreshold * G_CONST) {
@@ -318,10 +328,10 @@ namespace G_Effects
 			
 			priorities.TryGetValue(current.experienceTrait.Title.ToLower(), out current_pr);
 			priorities.TryGetValue(candidate.experienceTrait.Title.ToLower(), out candidate_pr);
-			if (current_pr > candidate_pr) { //return the one with the highest priority
-				return current;
-			} else if (candidate_pr > current_pr) {
+			if (candidate_pr > current_pr) { //return the one with the highest priority
 				return candidate;
+			} else if (current_pr > candidate_pr) {
+				return current;
 			} else { //or the one with the highest experience
 				if (candidate.experienceLevel > current.experienceLevel) {
 					return candidate;
@@ -338,14 +348,14 @@ namespace G_Effects
 			if (kerbalGData.gLocFadeAmount > MAX_GLOC_FADE) {
 				kerbalGData.gLocFadeAmount = MAX_GLOC_FADE;
 				if (isCommander) {
+					if (outputAllowed && (conf.gLocScreenWarning != null) && (conf.gLocScreenWarning.Length > 0) ) {
+						ScreenMessages.PostScreenMessage(conf.gLocScreenWarning);
+					}
 					Vessel vessel = crewMember.KerbalRef.InVessel;
 					if (!hasProbeCore(vessel)) {
 					    vessel.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
 					}
 					InputLockManager.SetControlLock(ControlTypes.ALL_SHIP_CONTROLS, CONTROL_LOCK_ID);
-				}
-				if ( outputAllowed && (conf.gLocScreenWarning != null) && (conf.gLocScreenWarning.Length > 0) ) {
-					ScreenMessages.PostScreenMessage(conf.gLocScreenWarning);
 				}
 			}
 		}
@@ -375,7 +385,7 @@ namespace G_Effects
 		
 		void doGreyout(KerbalGState gState) {
 			if (gState.cumulativeG > 0) {
-				float greyout = Mathf.Pow(Mathf.Clamp(gState.getSeverity() / 0.4f, 0f, 1.0f), 2); //Severity is divided by a percent of the total blackout at which greyout should be complete
+				float greyout = Mathf.Pow(Mathf.Clamp(gState.getSeverity() / 0.5f, 0f, 1.0f), 2); //Severity is divided by a percent of the total blackout at which greyout should be complete
 				flightCameraFilter.setMagnitude(greyout);
 				internalCameraFilter.setMagnitude(greyout);
 			} else {
@@ -386,11 +396,12 @@ namespace G_Effects
 		
 		void drawGEffects()
 		{
+			KerbalGState kerbalGData;
 			if (!playEffects) {
 				return;
 			}
 			
-			KerbalGState kerbalGData;
+			//KerbalGState kerbalGData;
 			if ((commander == null) || !kerbalGDict.TryGetValue(commander.name, out kerbalGData)) {
 				return;
 			}
