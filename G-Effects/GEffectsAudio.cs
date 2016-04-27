@@ -71,7 +71,6 @@ namespace G_Effects
         		gruntAudio.bypassListenerEffects = true;
         		gruntAudio.priority = 20;
         		gruntAudio.volume = GameSettings.VOICE_VOLUME * gruntsVolume;
-        		gruntAudio.panLevel = 0f;
         		gruntAudio.dopplerLevel = 0;
         		gruntAudio.bypassEffects = true;
         		gruntAudio.loop = false;
@@ -90,7 +89,6 @@ namespace G_Effects
         		breathAudio = audioPlayer.AddComponent<AudioSource>();
         		breathAudio.bypassListenerEffects = true;
         		breathAudio.volume = GameSettings.VOICE_VOLUME * breathVolume;
-        		breathAudio.panLevel = 0f;
         		breathAudio.dopplerLevel = 0;
         		breathAudio.bypassEffects = true;
         		breathAudio.loop = false;
@@ -104,7 +102,6 @@ namespace G_Effects
         		heartAudio.bypassListenerEffects = true;
         		heartAudio.priority = 10;
         		heartAudio.volume = GameSettings.VOICE_VOLUME * heartBeatsVolume;
-        		heartAudio.panLevel = 0f;
         		heartAudio.dopplerLevel = 0;
         		heartAudio.bypassEffects = true;
         		heartAudio.rolloffMode = AudioRolloffMode.Linear;
@@ -156,7 +153,7 @@ namespace G_Effects
         			}
         		}
         		filter.cutoffFrequency = 22000 * percent; 
-				filter.lowpassResonaceQ = 1;
+				filter.lowpassResonanceQ = 1;
         	}
         }
        

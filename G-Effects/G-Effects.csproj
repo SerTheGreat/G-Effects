@@ -54,11 +54,17 @@
     <Reference Include="Assembly-CSharp">
       <HintPath>..\..\Managed\Assembly-CSharp.dll</HintPath>
     </Reference>
+    <Reference Include="KSPUtil">
+      <HintPath>..\..\Managed\KSPUtil.dll</HintPath>
+    </Reference>
     <Reference Include="System">
       <HintPath>..\..\Managed\System.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine">
       <HintPath>..\..\Managed\UnityEngine.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.UI">
+      <HintPath>..\..\Managed\UnityEngine.UI.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>

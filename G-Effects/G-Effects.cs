@@ -75,7 +75,7 @@ namespace G_Effects
 			}
 
 			// Hook into the rendering queue to draw the G effects
-			RenderingManager.AddToPostDrawQueue(3, new Callback(drawGEffects));
+			//RenderingManager.AddToPostDrawQueue(3, new Callback(drawGEffects));
 			GameEvents.onGamePause.Add(onPause);
 			GameEvents.onGameUnpause.Add(onUnPause);
 			GameEvents.onCrash.Add(onCrewKilled);
@@ -86,7 +86,7 @@ namespace G_Effects
 		}
 		
 		protected void OnDestroy() {
-			RenderingManager.RemoveFromPostDrawQueue(3, new Callback(drawGEffects));
+			//RenderingManager.RemoveFromPostDrawQueue(3, new Callback(drawGEffects));
 			GameEvents.onGamePause.Remove(onPause);
 			GameEvents.onGameUnpause.Remove(onUnPause);
 			GameEvents.onCrash.Remove(onCrewKilled);
@@ -145,7 +145,7 @@ namespace G_Effects
 			}
 			
 			flightCameraFilter = GreyoutCameraFilter.initializeCameraFilter(FlightCamera.fetch.mainCamera, conf.mainCamGreyout);
-			internalCameraFilter = GreyoutCameraFilter.initializeCameraFilter(InternalCamera.Instance.camera, conf.IVAGreyout);
+			internalCameraFilter = GreyoutCameraFilter.initializeCameraFilter(InternalCamera.Instance.GetComponent<Camera>(), conf.IVAGreyout);
 		}
 		
 		public void Update() {
@@ -159,12 +159,12 @@ namespace G_Effects
 			
 			commander = null; //the commander is recalculated every update
 			playEffects = false; //this changes to true later if all necessary conditions are met
-			
+
 			//Return without any effect if the vessel hasn't any crew
 			if ((vessel.GetCrewCount() == 0)) {
 				return;
 			}
-			
+
 			if (!gAudio.isBoundToTransform()) {
 				gAudio.bindToTransform(FlightCamera.fetch.mainCamera.transform);
 			}
@@ -184,7 +184,7 @@ namespace G_Effects
 			}
 			
 			bool isIVA = CameraManager.Instance.currentCameraMode == CameraManager.CameraMode.IVA;
-
+			
 			playEffects = (commander != null) &&
 				(!conf.IVAOnly || isIVA) &&
 				!MapView.MapIsEnabled;
@@ -202,6 +202,7 @@ namespace G_Effects
 					continue;
 				}
 				
+			
 				KerbalGState gState;
 				if (!kerbalGDict.TryGetValue(crewMember.name, out gState)) {
 					gState = new KerbalGState(conf);
@@ -394,8 +395,19 @@ namespace G_Effects
 			}
 		}
 		
+		void OnGUI()
+		{
+		    if (Event.current.type == EventType.Repaint || Event.current.isMouse)
+		    {
+		    	//Predraw
+		    }
+		    
+		    drawGEffects();
+		}
+		
 		void drawGEffects()
 		{
+			
 			KerbalGState kerbalGData;
 			if (!playEffects) {
 				return;
