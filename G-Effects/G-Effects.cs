@@ -350,7 +350,7 @@ namespace G_Effects
 				kerbalGData.gLocFadeAmount = MAX_GLOC_FADE;
 				if (isCommander) {
 					if (outputAllowed && (conf.gLocScreenWarning != null) && (conf.gLocScreenWarning.Length > 0) ) {
-						ScreenMessages.PostScreenMessage(conf.gLocScreenWarning);
+						//ScreenMessages.PostScreenMessage(conf.gLocScreenWarning);
 					}
 					Vessel vessel = crewMember.KerbalRef.InVessel;
 					if (!hasProbeCore(vessel)) {
