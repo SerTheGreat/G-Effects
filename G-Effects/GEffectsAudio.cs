@@ -10,6 +10,8 @@ namespace G_Effects
 	/// </summary>
 	public class GEffectsAudio {
 		
+		bool DONT_USE_FILTERS = true;
+		
 		float gruntsVolume = 0;
 		float breathVolume = 0;
 		
@@ -138,6 +140,9 @@ namespace G_Effects
         }
         
         public void applyFilters(float percent) {
+        	if (DONT_USE_FILTERS) {
+        		return;
+        	}
         	if (!audioEnabled) {
         		return;
         	}
@@ -158,6 +163,9 @@ namespace G_Effects
         }
        
         public void removeFilters() {
+        	if (DONT_USE_FILTERS) {
+        		return;
+        	}
         	foreach (AudioLowPassFilter filter in filters.Keys) {
         		bool ownFilter = false;
         		//Destroying only our own filters setting others to nominal value

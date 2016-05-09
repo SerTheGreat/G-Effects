@@ -3,6 +3,7 @@ using System.IO;
 using System.Text;
 using System.Collections.Generic;
 using UnityEngine;
+using KSP.UI.Screens.Flight;
 
 namespace G_Effects
 {
@@ -51,7 +52,7 @@ namespace G_Effects
 		bool playEffects = false;
 		bool greyOutAllowed = false;
 		bool paused = false;
-		readonly static PortraitAgent PORTRAIT_AGENT = new PortraitAgent();
+		//readonly static PortraitAgent PORTRAIT_AGENT = new PortraitAgent();
 
 		Configuration conf = new Configuration();
 		GEffectsAudio gAudio = new GEffectsAudio();
@@ -82,7 +83,7 @@ namespace G_Effects
 			GameEvents.onCrashSplashdown.Add(onCrewKilled);
 			//GameEvents.onCrewKilled.Add(onCrewKilled);
 			GameEvents.onVesselChange.Add(onVesselChange);
-			PORTRAIT_AGENT.Start();
+			//PORTRAIT_AGENT.Start();
 		}
 		
 		protected void OnDestroy() {
@@ -93,12 +94,19 @@ namespace G_Effects
 			GameEvents.onCrashSplashdown.Remove(onCrewKilled);
 			//GameEvents.onCrewKilled.Remove(onCrewKilled);
 			GameEvents.onVesselChange.Remove(onVesselChange);
-			PORTRAIT_AGENT.OnDestroy();
+			//PORTRAIT_AGENT.OnDestroy();
 		}
 		
-		protected void LateUpdate() {
-			PORTRAIT_AGENT.LateUpdate();
-		}
+		/*protected void LateUpdate() {
+			//PORTRAIT_AGENT.LateUpdate();
+			if (commander != null) {
+				KerbalPortrait portrait = KerbalPortraitGallery.Instance.Portraits.Find(p => p.crewMemberName.Equals(commander.name));
+				if (portrait != null) {
+					portrait.overlayImg = new Texture2D(100, 100);
+					portrait.OverlayUpdate(true, 0);
+				}
+			}
+		}*/
 		
 		protected void FixedUpdate() {
 			if (InputLockManager.GetControlLock(CONTROL_LOCK_ID) != ControlTypes.None) {
@@ -132,7 +140,7 @@ namespace G_Effects
 			commander = null;
 			kerbalGDict.Clear(); //kerbalGDict is for persistence actually but if not cleared the G effects on crew will be "frozen" on switch out/in vessel
 			InputLockManager.RemoveControlLock(CONTROL_LOCK_ID);
-			PORTRAIT_AGENT.enableText(false);
+			//PORTRAIT_AGENT.enableText(false);
 			flightCameraFilter.setBypass(true);
 			internalCameraFilter.setBypass(true);
 		}
@@ -155,7 +163,6 @@ namespace G_Effects
 			}
 			
 			Vessel vessel = FlightGlobals.ActiveVessel;
-			Part referencePart = vessel.GetReferenceTransformPart();
 			
 			commander = null; //the commander is recalculated every update
 			playEffects = false; //this changes to true later if all necessary conditions are met
@@ -168,21 +175,24 @@ namespace G_Effects
 			if (!gAudio.isBoundToTransform()) {
 				gAudio.bindToTransform(FlightCamera.fetch.mainCamera.transform);
 			}
-			
 			if (vessel.isEVA) {
 				commander = vessel.GetVesselCrew()[0];
-			} else if (referencePart.CrewCapacity > 0) { //otherwise the vessel is controlled via probe core
-				//Find a crew member that most likely is controlling the vessel. So he is the one who sees the effects.
-				foreach (ProtoCrewMember crewMember in vessel.GetVesselCrew()) {
-					if (crewMember.seat.part.isControlSource) {
-						commander = bestCommander(commander, crewMember);
+			} else {
+				//Part controlSourcePart = vessel.GetReferenceTransformPart(); //doesn't work well since KSP 1.1.1. Seems to be a bug.
+				Part controlSourcePart = vessel.parts.Find(p => p.isControlSource);
+				if (controlSourcePart.CrewCapacity > 0) { //otherwise the vessel is controlled via probe core
+					//Find a crew member that most likely is controlling the vessel. So he is the one who sees the effects.
+					foreach (ProtoCrewMember crewMember in vessel.GetVesselCrew()) {
+						if (crewMember.seat.part.isControlSource) {
+							commander = bestCommander(commander, crewMember);
+						}
 					}
-				}
-			}//!!(Collision)(referencePart.currentCollisions.ToArray()[0]).
+				}//!!(Collision)(referencePart.currentCollisions.ToArray()[0]).
+			}
 			if (commander == null) { //if there's still no commander in the vessel then control lock must be removed because it is probably a probe core that has control at the moment
 				InputLockManager.RemoveControlLock(CONTROL_LOCK_ID);
 			}
-			
+
 			bool isIVA = CameraManager.Instance.currentCameraMode == CameraManager.CameraMode.IVA;
 			
 			playEffects = (commander != null) &&
@@ -193,8 +203,8 @@ namespace G_Effects
 			flightCameraFilter.setBypass(isIVA || !playEffects);
 			internalCameraFilter.setBypass(!isIVA || !playEffects);
 			gAudio.setAudioEnabled(playEffects);
-			PORTRAIT_AGENT.enableText(!playEffects);
-			
+			//PORTRAIT_AGENT.enableText(!playEffects);
+						
 			//Calcualte g-effects for each crew member
 			foreach (ProtoCrewMember crewMember in vessel.GetVesselCrew()) {
 
@@ -218,7 +228,6 @@ namespace G_Effects
 				if (keepFitFitnessModifier != null) {
 					kerbalModifier *= (float)keepFitFitnessModifier;
 				}
-				
 				//Calculate G forces
 				Vector3d gAcceleration = FlightGlobals.getGeeForceAtPosition(vessel.GetWorldPos3D()) - vessel.acceleration;
 				Vector3d cabinAcceleration = vessel.transform.InverseTransformDirection(gAcceleration); //vessel.transform is an active part's transform
@@ -288,15 +297,15 @@ namespace G_Effects
 
 				//Display current health status on portrait or die the crew member
 				if (gState.isCriticalCondition()) {
-					PORTRAIT_AGENT.setKerbalPortraitText(crewMember.name, "CRITICAL\nCONDITION", 0, 0, new Color(1f, 0f, 0f, 1), 4, 2);
+					//PORTRAIT_AGENT.setKerbalPortraitText(crewMember.name, "CRITICAL\nCONDITION", 0, 0, new Color(1f, 0f, 0f, 1), 4, 2);
 				} else if (gState.isGLocCondition()) {
-					PORTRAIT_AGENT.setKerbalPortraitText(crewMember.name, "RESPONSE\nMINIMAL",  ((int)(Planetarium.GetUniversalTime() * 10) % 4 - 2), 0, new Color(1f, 1f, 0f, 1), 0, 1);
+					//PORTRAIT_AGENT.setKerbalPortraitText(crewMember.name, "RESPONSE\nMINIMAL",  ((int)(Planetarium.GetUniversalTime() * 10) % 4 - 2), 0, new Color(1f, 1f, 0f, 1), 0, 1);
 				} else {
-					PORTRAIT_AGENT.disableKerbalPortraitText(crewMember.name);					
+					//PORTRAIT_AGENT.disableKerbalPortraitText(crewMember.name);					
 				}
 				if (gState.isDeathCondition()) {
 					crewMember.Die();
-					PORTRAIT_AGENT.disableKerbalPortraitText(crewMember.name);
+					//PORTRAIT_AGENT.disableKerbalPortraitText(crewMember.name);
 					kerbalGDict.Remove(crewMember.name);
 				}
 			}

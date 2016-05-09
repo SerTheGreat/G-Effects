@@ -45,7 +45,6 @@
     <Compile Include="GreyoutCameraFilter.cs" />
     <Compile Include="KeepFit\KeepFitAPI.cs" />
     <Compile Include="KerbalGState.cs" />
-    <Compile Include="PortraitAgent.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="PublicAPI\APIReflectionCaller.cs" />
     <Compile Include="PublicAPI\GEffectsAPI.cs" />
