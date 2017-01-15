@@ -42,6 +42,7 @@
     <Compile Include="G-Effects.cs" />
     <Compile Include="GEffectsAPIImplementation.cs" />
     <Compile Include="GEffectsAudio.cs" />
+    <Compile Include="GEffectsVisuals.cs" />
     <Compile Include="GreyoutCameraFilter.cs" />
     <Compile Include="KeepFit\KeepFitAPI.cs" />
     <Compile Include="KerbalGState.cs" />

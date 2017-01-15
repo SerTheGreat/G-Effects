@@ -124,7 +124,7 @@ namespace G_Effects
         	
         	positiveThreshold = 1 + deltaGTolerance;
 			negativeThreshold = 1 - deltaGTolerance;
-			//MAX_CUMULATIVE_G = 10 * gResistance;
+			MAX_CUMULATIVE_G = 10 * gResistance;
 			GLOC_CUMULATIVE_G = gLocStartCoeff * MAX_CUMULATIVE_G;
 			
         }

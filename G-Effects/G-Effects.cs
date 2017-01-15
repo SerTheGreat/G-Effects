@@ -34,20 +34,12 @@ namespace G_Effects
 		
 		GEffectsAPIImplementation gEffectsApiImpl = GEffectsAPIImplementation.instance();
 		KeepFit.KeepFitAPI keepFitAPI = new KeepFit.KeepFitAPI();
-		GreyoutCameraFilter flightCameraFilter;
-		GreyoutCameraFilter internalCameraFilter;
 		
 		const string APP_NAME = "G-Effects";
 		const string CONTROL_LOCK_ID = "G_EFFECTS_LOCK";
-		const double MAX_GLOC_FADE = 4.0;
-		const double G_CONST = 9.81;
+		public const double G_CONST = 9.81;
+		public const double MAX_GLOC_FADE = 4.0;
 				
-		static Texture2D blackoutTexture = null;
-		static Texture2D intensifier = new Texture2D(1, 1);
-		static Texture2D gLocOverlay = new Texture2D(1, 1);
-		Color visualsColor = new Color();
-		Color intensifierColor = new Color();
-		Color gLocColor = new Color();
 		ProtoCrewMember commander = null;
 		double downwardG;
 		double forwardG;
@@ -57,6 +49,7 @@ namespace G_Effects
 
 		Configuration conf = new Configuration();
 		GEffectsAudio gAudio = new GEffectsAudio();
+		GEffectsVisuals visuals;
 		
 		//Specialization priority to be a commander
 		Dictionary<string, int> priorities = new Dictionary<string, int>() {
@@ -71,9 +64,6 @@ namespace G_Effects
 			gEffectsApiImpl.setKerbalStates(kerbalGDict);
 			if (keepFitAPI.initialize()) {
 				writeLog("KeepFit mod detected. Working in conjunction.");
-			}
-			if (blackoutTexture == null) {
-				blackoutTexture = GameDatabase.Instance.GetTexture("G-Effects/blackout", false);
 			}
 
 			// Hook into the rendering queue to draw the G effects
@@ -99,7 +89,6 @@ namespace G_Effects
 			GameEvents.onCrashSplashdown.Remove(onCrewKilled);
 			//GameEvents.onCrewKilled.Remove(onCrewKilled);
 			GameEvents.onVesselChange.Remove(onVesselChange);
-			//PORTRAIT_AGENT.OnDestroy();
 		}
 		
 		/*protected void LateUpdate() {
@@ -148,8 +137,7 @@ namespace G_Effects
 			commander = null;
 			kerbalGDict.Clear(); //kerbalGDict is for persistence actually but if not cleared the G effects on crew will be "frozen" on switch out/in vessel
 			InputLockManager.RemoveControlLock(CONTROL_LOCK_ID);
-			flightCameraFilter.setBypass(true);
-			internalCameraFilter.setBypass(true);
+			visuals.disableCameraFilters();
 		}
 		
 		protected void Awake() {
@@ -159,8 +147,7 @@ namespace G_Effects
 				gAudio.initialize(conf.gruntsVolume, conf.breathVolume, conf.heartBeatVolume, conf.femaleVoicePitch, conf.breathSoundPitch);
 			}
 			
-			flightCameraFilter = GreyoutCameraFilter.initializeCameraFilter(FlightCamera.fetch.mainCamera, conf.mainCamGreyout);
-			internalCameraFilter = GreyoutCameraFilter.initializeCameraFilter(InternalCamera.Instance.GetComponent<Camera>(), conf.IVAGreyout);
+			visuals = GEffectsVisuals.initialize(conf);
 			
 			GameParameters.AdvancedParams pars = HighLogic.CurrentGame.Parameters.CustomParams<GameParameters.AdvancedParams>();
 			pars.GKerbalLimits = false;
@@ -216,8 +203,8 @@ namespace G_Effects
 				!MapView.MapIsEnabled;
 			
 			greyOutAllowed = isIVA && conf.IVAGreyout || !isIVA && conf.mainCamGreyout;
-			flightCameraFilter.setBypass(isIVA || !playEffects);
-			internalCameraFilter.setBypass(!isIVA || !playEffects);
+			visuals.flightCameraFilter.setBypass(isIVA || !playEffects);
+			visuals.internalCameraFilter.setBypass(!isIVA || !playEffects);
 			gAudio.setAudioEnabled(playEffects);
 			//PORTRAIT_AGENT.enableText(!playEffects);
 						
@@ -259,7 +246,7 @@ namespace G_Effects
 				gState.cumulativeG -= Math.Sign(gState.cumulativeG) * conf.gResistance * kerbalModifier * deltaTime;
 				//gAudio.applyFilter(1 - Mathf.Clamp01((float)(1.25 * Math.Pow(Math.Abs(gData.cumulativeG) / conf.MAX_CUMULATIVE_G, 2) - 0.2)));
 				if (crewMember.Equals(commander)) {
-					doGreyout(gState);
+					visuals.doGreyout(gState);
 				}
 				if ((downwardG > conf.positiveThreshold) || (downwardG < conf.negativeThreshold) || (forwardG > conf.positiveThreshold) || (forwardG < conf.negativeThreshold)) {
 					
@@ -370,8 +357,8 @@ namespace G_Effects
 			kerbalGData.stopAGSM(0);
 			kerbalGData.resetBreath();
 			kerbalGData.gLocFadeAmount += conf.gLocFadeSpeed * TimeWarp.fixedDeltaTime;
-			if (kerbalGData.gLocFadeAmount > MAX_GLOC_FADE) {
-				kerbalGData.gLocFadeAmount = MAX_GLOC_FADE;
+			if (kerbalGData.gLocFadeAmount > G_Effects.MAX_GLOC_FADE) {
+				kerbalGData.gLocFadeAmount = G_Effects.MAX_GLOC_FADE;
 				if (isCommander) {
 					GEffectsAudio.prepareAudioSources(FindObjectsOfType(typeof(AudioSource)) as AudioSource[]); //a barbarian way to prevent audiosources from being immune to G-LOC mute
 					if (outputAllowed && (conf.gLocScreenWarning != null) && (conf.gLocScreenWarning.Length > 0) ) {
@@ -411,17 +398,6 @@ namespace G_Effects
 			return crewMember.rosterStatus.Equals(ProtoCrewMember.RosterStatus.Dead) || crewMember.rosterStatus.Equals(ProtoCrewMember.RosterStatus.Missing);
 		}
 		
-		void doGreyout(KerbalGState gState) {
-			if (gState.cumulativeG > 0) {
-				float greyout = Mathf.Pow(Mathf.Clamp(gState.getSeverity() / 0.5f, 0f, 1.0f), 2); //Severity is divided by a percent of the total blackout at which greyout should be complete
-				flightCameraFilter.setMagnitude(greyout);
-				internalCameraFilter.setMagnitude(greyout);
-			} else {
-				flightCameraFilter.setMagnitude(0.0f);
-				internalCameraFilter.setMagnitude(0.0f);
-			}
-		}
-		
 		void passValuesToStock(ProtoCrewMember crewMember, KerbalGState gState) {
 			Debug.Log("G-Effects: passed to stock=" + gState.cumulativeG + " / " + conf.GLOC_CUMULATIVE_G + " coeff=" + (Math.Abs(gState.cumulativeG) / conf.GLOC_CUMULATIVE_G));
 			GameParameters.AdvancedParams pars = HighLogic.CurrentGame.Parameters.CustomParams<GameParameters.AdvancedParams>();
@@ -436,54 +412,19 @@ namespace G_Effects
 		    	//Predraw
 		    }
 		    
-		    drawGEffects();
-		}
-		
-		void drawGEffects()
-		{
-			KerbalGState kerbalGData;
-			if (!playEffects) {
+		    if (!playEffects) {
 				return;
 			} 
 			
+		    KerbalGState kerbalGData;
 			if ((commander == null) || !kerbalGDict.TryGetValue(commander.name, out kerbalGData)) {
 				return;
 			}
-			
-			double severity = kerbalGData.getSeverity();
-			//Apply positive or negative visual effect
-			if (kerbalGData.cumulativeG > 0) {
-				visualsColor = Color.black;
-				visualsColor.a = (float)(severity * 1.2);
-			} else {
-				visualsColor.r = conf.redoutRGB.r;
-				visualsColor.g = conf.redoutRGB.g;
-				visualsColor.b = conf.redoutRGB.b;
-				visualsColor.a = (float)(severity * 1.2);
-			}
-			
-			//We'll need to draw an additional solid texture over the blackout for intensification effect at the end
-			intensifierColor.r = visualsColor.r;
-			intensifierColor.g = visualsColor.g;
-			intensifierColor.b = visualsColor.b;
-			intensifierColor.a = (float)Math.Pow(severity, 4); //this will intensify blackout/redout effect at the very end
-			
-			intensifier.SetPixel(0, 0, intensifierColor);
-			intensifier.Apply();
-			
-			//The following will fade out in overlay whatever is diplayed if losing consciousness or fade in on wake up
-			gLocColor = Color.black;
-			gLocColor.a = (float)((kerbalGData.gLocFadeAmount * kerbalGData.gLocFadeAmount) / (MAX_GLOC_FADE * MAX_GLOC_FADE));
-			
-			gLocOverlay.SetPixel(0, 0, gLocColor);
-			gLocOverlay.Apply();
-			
-			GUI.color = visualsColor;
-			GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), blackoutTexture);
-			GUI.color = Color.white;
-			GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), intensifier);
-			GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), gLocOverlay);
+		    
+		    visuals.drawGEffects(kerbalGData);
 		}
+		
+		
 		
 		void writeDebug(string text) {
 			if (conf.enableLogging) {
