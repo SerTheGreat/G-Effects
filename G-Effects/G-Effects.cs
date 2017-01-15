@@ -10,7 +10,7 @@ namespace G_Effects
 	/// <summary>
 	/// The G-Effects plugin for Kerbal Space Program
 	/// 
-	///Copyright (C) 2015 Ser
+	///Copyright (C) 2015-2017 Ser
 	///This program is free software; you can redistribute it and/or
 	///modify it under the terms of the GNU General Public License
 	///as published by the Free Software Foundation; either version 2
@@ -39,20 +39,21 @@ namespace G_Effects
 		
 		const string APP_NAME = "G-Effects";
 		const string CONTROL_LOCK_ID = "G_EFFECTS_LOCK";
-		const int MAX_GLOC_FADE = 100;
+		const double MAX_GLOC_FADE = 4.0;
 		const double G_CONST = 9.81;
 				
-		static Texture2D blackoutTexture = null;//new Texture2D(32, 32, TextureFormat.ARGB32, false);
-		static Texture2D fillTexture = new Texture2D(1, 1);
-		Color colorOut = new Color();
-		Color colorFill = new Color();
+		static Texture2D blackoutTexture = null;
+		static Texture2D intensifier = new Texture2D(1, 1);
+		static Texture2D gLocOverlay = new Texture2D(1, 1);
+		Color visualsColor = new Color();
+		Color intensifierColor = new Color();
+		Color gLocColor = new Color();
 		ProtoCrewMember commander = null;
 		double downwardG;
 		double forwardG;
 		bool playEffects = false;
 		bool greyOutAllowed = false;
 		bool paused = false;
-		//readonly static PortraitAgent PORTRAIT_AGENT = new PortraitAgent();
 
 		Configuration conf = new Configuration();
 		GEffectsAudio gAudio = new GEffectsAudio();
@@ -83,7 +84,11 @@ namespace G_Effects
 			GameEvents.onCrashSplashdown.Add(onCrewKilled);
 			//GameEvents.onCrewKilled.Add(onCrewKilled);
 			GameEvents.onVesselChange.Add(onVesselChange);
-			//PORTRAIT_AGENT.Start();
+			
+			ProtoCrewMember.doStockGCalcs = false;
+			
+			//This corrects KSP bug with reference part not restored when switching to IVA and back
+			FlightGlobals.ActiveVessel.SetReferenceTransform(FlightGlobals.ActiveVessel.GetReferenceTransformPart(), true);
 		}
 		
 		protected void OnDestroy() {
@@ -102,13 +107,16 @@ namespace G_Effects
 			if (commander != null) {
 				KerbalPortrait portrait = KerbalPortraitGallery.Instance.Portraits.Find(p => p.crewMemberName.Equals(commander.name));
 				if (portrait != null) {
-					portrait.overlayImg = new Texture2D(100, 100);
+					Texture2D texture = new Texture2D(1,1);
+					texture.SetPixel(0,0,new Color(0,0,0,0.5f));
+					texture.Resize((int)portrait.portrait.rectTransform.rect.width, (int)portrait.portrait.rectTransform.rect.height);
+					portrait.overlayImg = texture;
 					portrait.OverlayUpdate(true, 0);
 				}
 			}
 		}*/
 		
-		protected void FixedUpdate() {
+		private void applyControlLock() {
 			if (InputLockManager.GetControlLock(CONTROL_LOCK_ID) != ControlTypes.None) {
 				FlightGlobals.ActiveVessel.ctrlState.NeutralizeStick();
 			}
@@ -140,7 +148,6 @@ namespace G_Effects
 			commander = null;
 			kerbalGDict.Clear(); //kerbalGDict is for persistence actually but if not cleared the G effects on crew will be "frozen" on switch out/in vessel
 			InputLockManager.RemoveControlLock(CONTROL_LOCK_ID);
-			//PORTRAIT_AGENT.enableText(false);
 			flightCameraFilter.setBypass(true);
 			internalCameraFilter.setBypass(true);
 		}
@@ -154,9 +161,14 @@ namespace G_Effects
 			
 			flightCameraFilter = GreyoutCameraFilter.initializeCameraFilter(FlightCamera.fetch.mainCamera, conf.mainCamGreyout);
 			internalCameraFilter = GreyoutCameraFilter.initializeCameraFilter(InternalCamera.Instance.GetComponent<Camera>(), conf.IVAGreyout);
+			
+			GameParameters.AdvancedParams pars = HighLogic.CurrentGame.Parameters.CustomParams<GameParameters.AdvancedParams>();
+			pars.GKerbalLimits = false;
 		}
 		
-		public void Update() {
+		public void FixedUpdate() {
+			
+			applyControlLock();
 
 			if (paused) {
 				return;
@@ -171,21 +183,25 @@ namespace G_Effects
 			if ((vessel.GetCrewCount() == 0)) {
 				return;
 			}
-
+			
 			if (!gAudio.isBoundToTransform()) {
 				gAudio.bindToTransform(FlightCamera.fetch.mainCamera.transform);
 			}
 			if (vessel.isEVA) {
 				commander = vessel.GetVesselCrew()[0];
 			} else {
-				//Part controlSourcePart = vessel.GetReferenceTransformPart(); //doesn't work well since KSP 1.1.1. Seems to be a bug.
-				Part controlSourcePart = vessel.parts.Find(p => p.isControlSource);
+				Part controlSourcePart = vessel.GetReferenceTransformPart(); //doesn't work well since KSP 1.1.1. Seems to be a bug.
+				//Part controlSourcePart = vessel.parts.Find(p => p.isControlSource);
 				if (controlSourcePart.CrewCapacity > 0) { //otherwise the vessel is controlled via probe core
 					//Find a crew member that most likely is controlling the vessel. So he is the one who sees the effects.
 					foreach (ProtoCrewMember crewMember in vessel.GetVesselCrew()) {
-						if (crewMember.seat.part.isControlSource) {
+						if (crewMember.seat.part.FindModuleImplementing<ModuleCommand>() != null) {
 							commander = bestCommander(commander, crewMember);
 						}
+						/*if (crewMember.seat.part.isControlSource == Vessel.ControlLevel.PARTIAL_MANNED ||
+						    crewMember.seat.part.isControlSource == Vessel.ControlLevel.FULL) {
+							commander = bestCommander(commander, crewMember);
+						}*/
 					}
 				}//!!(Collision)(referencePart.currentCollisions.ToArray()[0]).
 			}
@@ -210,8 +226,7 @@ namespace G_Effects
 
 				if ( isRosterDead(crewMember)) {
 					continue;
-				}
-				
+				}				
 			
 				KerbalGState gState;
 				if (!kerbalGDict.TryGetValue(crewMember.name, out gState)) {
@@ -236,17 +251,21 @@ namespace G_Effects
 				gState.previousAcceleration = cabinAcceleration;
 				gState.downwardG = cabinAcceleration.z / G_CONST; //These are true G values
 				gState.forwardG = cabinAcceleration.y / G_CONST;
-				downwardG = gState.downwardG * (gState.downwardG-1 > 0 ? conf.downwardGMultiplier : conf.upwardGMultiplier); //These are modified G values for usage in further calculations
+				downwardG = gState.downwardG * (gState.downwardG-1 > 0 ? conf.downwardGMultiplier : conf.upwardGMultiplier);//These are modified G values for usage in further calculations
 				forwardG = gState.forwardG * (gState.forwardG > 0 ? conf.forwardGMultiplier : conf.backwardGMultiplier);
 				
-				gState.cumulativeG -= Math.Sign(gState.cumulativeG) * conf.gResistance * kerbalModifier;
+				float deltaTime = TimeWarp.fixedDeltaTime;
+				
+				gState.cumulativeG -= Math.Sign(gState.cumulativeG) * conf.gResistance * kerbalModifier * deltaTime;
 				//gAudio.applyFilter(1 - Mathf.Clamp01((float)(1.25 * Math.Pow(Math.Abs(gData.cumulativeG) / conf.MAX_CUMULATIVE_G, 2) - 0.2)));
-				doGreyout(gState);
+				if (crewMember.Equals(commander)) {
+					doGreyout(gState);
+				}
 				if ((downwardG > conf.positiveThreshold) || (downwardG < conf.negativeThreshold) || (forwardG > conf.positiveThreshold) || (forwardG < conf.negativeThreshold)) {
 					
 					double rebCompensation = conf.gResistance * kerbalModifier - conf.deltaGTolerance * conf.deltaGTolerance / kerbalModifier; //this is calculated so the rebound is in equilibrium with cumulativeG at the very point of G threshold
-					gState.cumulativeG += Math.Sign(downwardG-1+forwardG) * rebCompensation + (Math.Abs(downwardG-1)*(downwardG-1) + Math.Abs(forwardG) * forwardG) / kerbalModifier;
-
+					gState.cumulativeG += 
+						(Math.Sign(downwardG-1+forwardG) * rebCompensation + (Math.Abs(downwardG-1)*(downwardG-1) + Math.Abs(forwardG) * forwardG) / kerbalModifier) * deltaTime;
 					gAudio.stopBreath();
 					gState.resetBreath();
 					
@@ -285,9 +304,14 @@ namespace G_Effects
 					}
 				}
 				
+				
 				if (crewMember.Equals(commander)) {
-					gAudio.applyFilters(1 - gState.gLocFadeAmount / MAX_GLOC_FADE);
+					//gAudio.applyFilters((float)(1 - gState.cumulativeG / conf.MAX_CUMULATIVE_G));
+					gAudio.applyFilters((float)Math.Pow(1 - gState.gLocFadeAmount / MAX_GLOC_FADE, 2));
 				}
+				
+				passValuesToStock(crewMember, gState);
+				
 				writeDebug("crew=" + crewMember.name + " cumulativeG=" + gState.cumulativeG);
 				
 				//If out of danger then stop negative G sound effects
@@ -295,17 +319,8 @@ namespace G_Effects
 					gAudio.stopHeartBeats();
 				}
 
-				//Display current health status on portrait or die the crew member
-				if (gState.isCriticalCondition()) {
-					//PORTRAIT_AGENT.setKerbalPortraitText(crewMember.name, "CRITICAL\nCONDITION", 0, 0, new Color(1f, 0f, 0f, 1), 4, 2);
-				} else if (gState.isGLocCondition()) {
-					//PORTRAIT_AGENT.setKerbalPortraitText(crewMember.name, "RESPONSE\nMINIMAL",  ((int)(Planetarium.GetUniversalTime() * 10) % 4 - 2), 0, new Color(1f, 1f, 0f, 1), 0, 1);
-				} else {
-					//PORTRAIT_AGENT.disableKerbalPortraitText(crewMember.name);					
-				}
 				if (gState.isDeathCondition()) {
 					crewMember.Die();
-					//PORTRAIT_AGENT.disableKerbalPortraitText(crewMember.name);
 					kerbalGDict.Remove(crewMember.name);
 				}
 			}
@@ -354,36 +369,39 @@ namespace G_Effects
 		void loseConsciousness(ProtoCrewMember crewMember, KerbalGState kerbalGData, bool isCommander, bool outputAllowed) {
 			kerbalGData.stopAGSM(0);
 			kerbalGData.resetBreath();
-			kerbalGData.gLocFadeAmount += conf.gLocFadeSpeed;
+			kerbalGData.gLocFadeAmount += conf.gLocFadeSpeed * TimeWarp.fixedDeltaTime;
 			if (kerbalGData.gLocFadeAmount > MAX_GLOC_FADE) {
 				kerbalGData.gLocFadeAmount = MAX_GLOC_FADE;
 				if (isCommander) {
+					GEffectsAudio.prepareAudioSources(FindObjectsOfType(typeof(AudioSource)) as AudioSource[]); //a barbarian way to prevent audiosources from being immune to G-LOC mute
 					if (outputAllowed && (conf.gLocScreenWarning != null) && (conf.gLocScreenWarning.Length > 0) ) {
-						//ScreenMessages.PostScreenMessage(conf.gLocScreenWarning);
+						ScreenMessages.PostScreenMessage(conf.gLocScreenWarning);
 					}
 					Vessel vessel = crewMember.KerbalRef.InVessel;
 					if (!hasProbeCore(vessel)) {
 					    vessel.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
 					}
 					InputLockManager.SetControlLock(ControlTypes.ALL_SHIP_CONTROLS, CONTROL_LOCK_ID);
+					crewMember.SetInactive(60000, false);
 				}
 			}
 		}
 		
 		
 		void reboundConsciousness(ProtoCrewMember crewMember, KerbalGState kerbalGData, bool isCommander) {
-			kerbalGData.gLocFadeAmount -= conf.gLocFadeSpeed;
+			kerbalGData.gLocFadeAmount -= conf.gLocFadeSpeed * TimeWarp.fixedDeltaTime;
 			if (kerbalGData.gLocFadeAmount <= 0) {
 				kerbalGData.gLocFadeAmount = 0;
 				if (isCommander) {
 					InputLockManager.RemoveControlLock(CONTROL_LOCK_ID);
+					crewMember.SetInactive(0, false);
 				}
 			}
 		}
 		
 		bool hasProbeCore(Vessel vessel) {
 			foreach (Part part in vessel.Parts) {
-				if (part.isControlSource && (part.CrewCapacity == 0))
+				if ((part.isControlSource == Vessel.ControlLevel.PARTIAL_MANNED) && (part.CrewCapacity == 0))
 					return true;
 			}
 			return false;
@@ -404,6 +422,13 @@ namespace G_Effects
 			}
 		}
 		
+		void passValuesToStock(ProtoCrewMember crewMember, KerbalGState gState) {
+			Debug.Log("G-Effects: passed to stock=" + gState.cumulativeG + " / " + conf.GLOC_CUMULATIVE_G + " coeff=" + (Math.Abs(gState.cumulativeG) / conf.GLOC_CUMULATIVE_G));
+			GameParameters.AdvancedParams pars = HighLogic.CurrentGame.Parameters.CustomParams<GameParameters.AdvancedParams>();
+			crewMember.gExperienced = 
+				Math.Abs(gState.cumulativeG) / conf.GLOC_CUMULATIVE_G * PhysicsGlobals.KerbalGThresholdLOC * pars.KerbalGToleranceMult * ProtoCrewMember.GToleranceMult(crewMember);
+		}
+		
 		void OnGUI()
 		{
 		    if (Event.current.type == EventType.Repaint || Event.current.isMouse)
@@ -416,13 +441,11 @@ namespace G_Effects
 		
 		void drawGEffects()
 		{
-			
 			KerbalGState kerbalGData;
 			if (!playEffects) {
 				return;
-			}
+			} 
 			
-			//KerbalGState kerbalGData;
 			if ((commander == null) || !kerbalGDict.TryGetValue(commander.name, out kerbalGData)) {
 				return;
 			}
@@ -430,38 +453,36 @@ namespace G_Effects
 			double severity = kerbalGData.getSeverity();
 			//Apply positive or negative visual effect
 			if (kerbalGData.cumulativeG > 0) {
-				colorOut = Color.black;
-				colorOut.a = (float)(severity * 1.2);
+				visualsColor = Color.black;
+				visualsColor.a = (float)(severity * 1.2);
 			} else {
-				colorOut.r = conf.redoutRGB.r;
-				colorOut.g = conf.redoutRGB.g;
-				colorOut.b = conf.redoutRGB.b;
-				colorOut.a = (float)(severity * 1.2);
+				visualsColor.r = conf.redoutRGB.r;
+				visualsColor.g = conf.redoutRGB.g;
+				visualsColor.b = conf.redoutRGB.b;
+				visualsColor.a = (float)(severity * 1.2);
 			}
 			
-			//We'll need to draw an additional solid texture over the blackout for both intensification effect at the end and G-LOC fade in/out
-			colorFill.r = colorOut.r;
-			colorFill.g = colorOut.g;
-			colorFill.b = colorOut.b;
-			colorFill.a = (float)Math.Pow(severity, 4); //this will intensify blackout/redout effect at the very end
+			//We'll need to draw an additional solid texture over the blackout for intensification effect at the end
+			intensifierColor.r = visualsColor.r;
+			intensifierColor.g = visualsColor.g;
+			intensifierColor.b = visualsColor.b;
+			intensifierColor.a = (float)Math.Pow(severity, 4); //this will intensify blackout/redout effect at the very end
+			
+			intensifier.SetPixel(0, 0, intensifierColor);
+			intensifier.Apply();
 			
 			//The following will fade out in overlay whatever is diplayed if losing consciousness or fade in on wake up
-			float fade = (float)(kerbalGData.gLocFadeAmount * kerbalGData.gLocFadeAmount) / (float)(MAX_GLOC_FADE * MAX_GLOC_FADE);
-			colorFill.r -= fade;
-			colorFill.g -= fade;
-			colorFill.b -= fade;
-			colorFill.a += fade;
+			gLocColor = Color.black;
+			gLocColor.a = (float)((kerbalGData.gLocFadeAmount * kerbalGData.gLocFadeAmount) / (MAX_GLOC_FADE * MAX_GLOC_FADE));
 			
-			fillTexture.SetPixel(0, 0, colorFill);
-			fillTexture.Apply();
+			gLocOverlay.SetPixel(0, 0, gLocColor);
+			gLocOverlay.Apply();
 			
-			//if (FlightGlobals.ActiveVessel.horizontalSrfSpeed > 50 & FlightGlobals.ActiveVessel.situation != Vessel.Situations.LANDED) // Dirty hack to stop the 'drunk prograde marker' causing weird G effects when stopped
-			{
-				GUI.color = colorOut;
-				GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), blackoutTexture);
-				GUI.color = Color.white;
-				GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), fillTexture);
-			}
+			GUI.color = visualsColor;
+			GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), blackoutTexture);
+			GUI.color = Color.white;
+			GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), intensifier);
+			GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), gLocOverlay);
 		}
 		
 		void writeDebug(string text) {

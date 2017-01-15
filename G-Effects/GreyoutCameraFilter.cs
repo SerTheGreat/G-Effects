@@ -10,7 +10,9 @@ namespace G_Effects
 	public class GreyoutCameraFilter : MonoBehaviour
 	{
 		
-		static Material material;
+		private static bool BundleLoaded = false;
+		private static Material material;
+		
 		bool bypass = true;
 		float magnitude = 0;
 		
@@ -21,7 +23,7 @@ namespace G_Effects
 		public GreyoutCameraFilter(bool actualEffect)
 		{
 			if (actualEffect && material == null) {
-				material = loadShader("greyout.shader");
+				material = createMaterial("G-Effects/Greyout");
 			}
 		}
 		
@@ -46,7 +48,20 @@ namespace G_Effects
 			this.magnitude = magnitude;
 		}
 		
-		private static Material loadShader(string fileName) {
+		void OnRenderImage(RenderTexture source, RenderTexture dest) {
+			if ((material != null) && !bypass) {
+				material.SetFloat("_Magnitude", magnitude);
+				Graphics.Blit(source, dest, material);
+			}
+		}
+		
+		private static Material createMaterial(string shaderName) {
+			string path = KSP.IO.IOUtils.GetFilePathFor(typeof(G_Effects), "shaders.bundle").Replace("/", System.IO.Path.DirectorySeparatorChar.ToString());
+			return new Material(LoadBundle(path, shaderName));
+		}
+		
+		//Old way to create a material
+		/*private static Material loadShader(string fileName) {
 			try {
 				string path = KSPUtil.ApplicationRootPath.Replace(@"\", "/") + "/GameData/G-Effects/Shaders/" + fileName;
 		        StreamReader reader = new StreamReader(path);
@@ -57,12 +72,30 @@ namespace G_Effects
 		        Debug.Log(string.Format("G-Effects: loadShader exception: {0}", ex.Message));
 		        return null;
 		    }
-		}
+		}*/
 		
-		void OnRenderImage(RenderTexture source, RenderTexture dest) {
-			if ((material != null) && !bypass) {
-				material.SetFloat("_Magnitude", magnitude);
-				Graphics.Blit(source, dest, material);
+		public static Shader LoadBundle(string path, string assetName)
+		{
+			if (BundleLoaded) {
+				return null;
+			}
+			
+			using (WWW www = new WWW ("file://" + path)) {
+				Debug.Log("===================== Path=" + path);
+				if (www.error != null) {
+					Debug.Log ("G-Effects: Shader bundle not found!");
+					return null;
+				}
+	
+				AssetBundle bundle = www.assetBundle;
+				Debug.Log("===================== BUNDLE=" + bundle);
+				Shader shader = bundle.LoadAsset<Shader> ("greyout");
+				Debug.Log("===================== Shader=" + shader);
+				bundle.Unload (false);
+				www.Dispose ();
+			
+				BundleLoaded = true;
+				return shader;
 			}
 		}
 		

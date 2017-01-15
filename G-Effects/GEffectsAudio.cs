@@ -10,7 +10,7 @@ namespace G_Effects
 	/// </summary>
 	public class GEffectsAudio {
 		
-		bool DONT_USE_FILTERS = true;
+		bool DONT_USE_FILTERS = false;
 		
 		float gruntsVolume = 0;
 		float breathVolume = 0;
@@ -137,6 +137,12 @@ namespace G_Effects
         		clearAllSounds();
         		removeFilters();
         	}
+        }
+        
+        public static void prepareAudioSources(AudioSource[] audioSources) {
+    		for (int i = 0; i < audioSources.Length; i++) {
+    			audioSources[i].bypassListenerEffects = false;
+    		}
         }
         
         public void applyFilters(float percent) {

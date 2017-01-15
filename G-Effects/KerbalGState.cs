@@ -17,7 +17,7 @@ namespace G_Effects
         public double downwardG = 0;
         public double forwardG = 0;
         public Vector3d previousAcceleration = Vector3d.zero; //this is used to track sudden G peaks caused by the imperfectness of physics
-		public int gLocFadeAmount = 0;
+		public double gLocFadeAmount = 0;
 		
 		private int breathNeeded = 0;
 		private double agsmStart = -1;
