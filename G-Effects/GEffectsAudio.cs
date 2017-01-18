@@ -10,6 +10,8 @@ namespace G_Effects
 	/// </summary>
 	public class GEffectsAudio {
 		
+		bool DONT_USE_FILTERS = false;
+		
 		float gruntsVolume = 0;
 		float breathVolume = 0;
 		
@@ -71,7 +73,6 @@ namespace G_Effects
         		gruntAudio.bypassListenerEffects = true;
         		gruntAudio.priority = 20;
         		gruntAudio.volume = GameSettings.VOICE_VOLUME * gruntsVolume;
-        		gruntAudio.panLevel = 0f;
         		gruntAudio.dopplerLevel = 0;
         		gruntAudio.bypassEffects = true;
         		gruntAudio.loop = false;
@@ -90,7 +91,6 @@ namespace G_Effects
         		breathAudio = audioPlayer.AddComponent<AudioSource>();
         		breathAudio.bypassListenerEffects = true;
         		breathAudio.volume = GameSettings.VOICE_VOLUME * breathVolume;
-        		breathAudio.panLevel = 0f;
         		breathAudio.dopplerLevel = 0;
         		breathAudio.bypassEffects = true;
         		breathAudio.loop = false;
@@ -104,7 +104,6 @@ namespace G_Effects
         		heartAudio.bypassListenerEffects = true;
         		heartAudio.priority = 10;
         		heartAudio.volume = GameSettings.VOICE_VOLUME * heartBeatsVolume;
-        		heartAudio.panLevel = 0f;
         		heartAudio.dopplerLevel = 0;
         		heartAudio.bypassEffects = true;
         		heartAudio.rolloffMode = AudioRolloffMode.Linear;
@@ -140,7 +139,16 @@ namespace G_Effects
         	}
         }
         
+        public static void prepareAudioSources(AudioSource[] audioSources) {
+    		for (int i = 0; i < audioSources.Length; i++) {
+    			audioSources[i].bypassListenerEffects = false;
+    		}
+        }
+        
         public void applyFilters(float percent) {
+        	if (DONT_USE_FILTERS) {
+        		return;
+        	}
         	if (!audioEnabled) {
         		return;
         	}
@@ -156,11 +164,14 @@ namespace G_Effects
         			}
         		}
         		filter.cutoffFrequency = 22000 * percent; 
-				filter.lowpassResonaceQ = 1;
+				filter.lowpassResonanceQ = 1;
         	}
         }
        
         public void removeFilters() {
+        	if (DONT_USE_FILTERS) {
+        		return;
+        	}
         	foreach (AudioLowPassFilter filter in filters.Keys) {
         		bool ownFilter = false;
         		//Destroying only our own filters setting others to nominal value

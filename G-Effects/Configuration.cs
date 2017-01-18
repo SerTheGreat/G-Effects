@@ -56,8 +56,8 @@ namespace G_Effects
 		//Calculated parameters:
 		public double positiveThreshold = 4;
         public double negativeThreshold = -2;
-        public double MAX_CUMULATIVE_G = 10000;
-        public double GLOC_CUMULATIVE_G = 11000;
+        public double MAX_CUMULATIVE_G = 1000;
+        public double GLOC_CUMULATIVE_G = 1100;
         
 		public Configuration()
 		{
@@ -124,7 +124,7 @@ namespace G_Effects
         	
         	positiveThreshold = 1 + deltaGTolerance;
 			negativeThreshold = 1 - deltaGTolerance;
-			MAX_CUMULATIVE_G = gResistance * gResistance;
+			MAX_CUMULATIVE_G = 10 * gResistance;
 			GLOC_CUMULATIVE_G = gLocStartCoeff * MAX_CUMULATIVE_G;
 			
         }
