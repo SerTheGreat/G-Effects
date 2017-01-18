@@ -361,7 +361,8 @@ namespace G_Effects
 				kerbalGData.gLocFadeAmount = G_Effects.MAX_GLOC_FADE;
 				if (isCommander) {
 					GEffectsAudio.prepareAudioSources(FindObjectsOfType(typeof(AudioSource)) as AudioSource[]); //a barbarian way to prevent audiosources from being immune to G-LOC mute
-					if (outputAllowed && (conf.gLocScreenWarning != null) && (conf.gLocScreenWarning.Length > 0) ) {
+					if (outputAllowed && (conf.gLocScreenWarning != null) && (conf.gLocScreenWarning.Length > 0) &&
+					   !HighLogic.CurrentGame.Parameters.CustomParams<GameParameters.AdvancedParams>().GKerbalLimits) {
 						ScreenMessages.PostScreenMessage(conf.gLocScreenWarning);
 					}
 					Vessel vessel = crewMember.KerbalRef.InVessel;
