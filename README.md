@@ -1,6 +1,6 @@
 # G-Effects mod for Kerbal Space Program
 
-Suppoted KSP version: 1.0.5
+Suppoted KSP version: 1.2.2
 
 The work was originally started by russnash37 who gave a permission to take over and extend [his project] (http://forum.kerbalspaceprogram.com/threads/106055)
 
