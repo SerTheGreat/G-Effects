@@ -382,7 +382,9 @@ namespace G_Effects
 				kerbalGData.gLocFadeAmount = 0;
 				if (isCommander) {
 					InputLockManager.RemoveControlLock(CONTROL_LOCK_ID);
-					crewMember.SetInactive(0, false);
+					if (crewMember.inactive) {
+						crewMember.SetInactive(0, false);
+					}
 				}
 			}
 		}
