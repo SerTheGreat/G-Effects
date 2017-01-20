@@ -400,7 +400,6 @@ namespace G_Effects
 		}
 		
 		void passValuesToStock(ProtoCrewMember crewMember, KerbalGState gState) {
-			Debug.Log("G-Effects: passed to stock=" + gState.cumulativeG + " / " + conf.GLOC_CUMULATIVE_G + " coeff=" + (Math.Abs(gState.cumulativeG) / conf.GLOC_CUMULATIVE_G));
 			GameParameters.AdvancedParams pars = HighLogic.CurrentGame.Parameters.CustomParams<GameParameters.AdvancedParams>();
 			crewMember.gExperienced = 
 				Math.Abs(gState.cumulativeG) / conf.GLOC_CUMULATIVE_G * PhysicsGlobals.KerbalGThresholdLOC * pars.KerbalGToleranceMult * ProtoCrewMember.GToleranceMult(crewMember);
