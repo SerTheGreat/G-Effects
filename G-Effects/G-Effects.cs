@@ -78,6 +78,9 @@ namespace G_Effects
 			ProtoCrewMember.doStockGCalcs = false;
 			
 			//This corrects KSP bug with reference part not restored when switching to IVA and back
+			if (FlightGlobals.ActiveVessel.GetReferenceTransformPart() == null) {
+				FlightGlobals.ActiveVessel.FallBackReferenceTransform();
+			}
 			FlightGlobals.ActiveVessel.SetReferenceTransform(FlightGlobals.ActiveVessel.GetReferenceTransformPart(), true);
 		}
 		
@@ -207,7 +210,7 @@ namespace G_Effects
 			visuals.internalCameraFilter.setBypass(!isIVA || !playEffects);
 			gAudio.setAudioEnabled(playEffects);
 			//PORTRAIT_AGENT.enableText(!playEffects);
-						
+			
 			//Calcualte g-effects for each crew member
 			foreach (ProtoCrewMember crewMember in vessel.GetVesselCrew()) {
 
@@ -242,7 +245,6 @@ namespace G_Effects
 				forwardG = gState.forwardG * (gState.forwardG > 0 ? conf.forwardGMultiplier : conf.backwardGMultiplier);
 				
 				float deltaTime = TimeWarp.fixedDeltaTime;
-				
 				gState.cumulativeG -= Math.Sign(gState.cumulativeG) * conf.gResistance * kerbalModifier * deltaTime;
 				//gAudio.applyFilter(1 - Mathf.Clamp01((float)(1.25 * Math.Pow(Math.Abs(gData.cumulativeG) / conf.MAX_CUMULATIVE_G, 2) - 0.2)));
 				if (crewMember.Equals(commander)) {
@@ -382,7 +384,9 @@ namespace G_Effects
 				kerbalGData.gLocFadeAmount = 0;
 				if (isCommander) {
 					InputLockManager.RemoveControlLock(CONTROL_LOCK_ID);
-					crewMember.SetInactive(0, false);
+					if (crewMember.inactive) {
+						crewMember.SetInactive(0, false);
+					}
 				}
 			}
 		}
@@ -400,7 +404,6 @@ namespace G_Effects
 		}
 		
 		void passValuesToStock(ProtoCrewMember crewMember, KerbalGState gState) {
-			Debug.Log("G-Effects: passed to stock=" + gState.cumulativeG + " / " + conf.GLOC_CUMULATIVE_G + " coeff=" + (Math.Abs(gState.cumulativeG) / conf.GLOC_CUMULATIVE_G));
 			GameParameters.AdvancedParams pars = HighLogic.CurrentGame.Parameters.CustomParams<GameParameters.AdvancedParams>();
 			crewMember.gExperienced = 
 				Math.Abs(gState.cumulativeG) / conf.GLOC_CUMULATIVE_G * PhysicsGlobals.KerbalGThresholdLOC * pars.KerbalGToleranceMult * ProtoCrewMember.GToleranceMult(crewMember);
