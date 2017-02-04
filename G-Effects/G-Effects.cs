@@ -78,6 +78,9 @@ namespace G_Effects
 			ProtoCrewMember.doStockGCalcs = false;
 			
 			//This corrects KSP bug with reference part not restored when switching to IVA and back
+			if (FlightGlobals.ActiveVessel.GetReferenceTransformPart() == null) {
+				FlightGlobals.ActiveVessel.FallBackReferenceTransform();
+			}
 			FlightGlobals.ActiveVessel.SetReferenceTransform(FlightGlobals.ActiveVessel.GetReferenceTransformPart(), true);
 		}
 		
@@ -207,7 +210,7 @@ namespace G_Effects
 			visuals.internalCameraFilter.setBypass(!isIVA || !playEffects);
 			gAudio.setAudioEnabled(playEffects);
 			//PORTRAIT_AGENT.enableText(!playEffects);
-						
+			
 			//Calcualte g-effects for each crew member
 			foreach (ProtoCrewMember crewMember in vessel.GetVesselCrew()) {
 
@@ -242,7 +245,6 @@ namespace G_Effects
 				forwardG = gState.forwardG * (gState.forwardG > 0 ? conf.forwardGMultiplier : conf.backwardGMultiplier);
 				
 				float deltaTime = TimeWarp.fixedDeltaTime;
-				
 				gState.cumulativeG -= Math.Sign(gState.cumulativeG) * conf.gResistance * kerbalModifier * deltaTime;
 				//gAudio.applyFilter(1 - Mathf.Clamp01((float)(1.25 * Math.Pow(Math.Abs(gData.cumulativeG) / conf.MAX_CUMULATIVE_G, 2) - 0.2)));
 				if (crewMember.Equals(commander)) {
