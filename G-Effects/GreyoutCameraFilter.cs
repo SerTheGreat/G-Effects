@@ -16,18 +16,11 @@ namespace G_Effects
 		bool bypass = true;
 		float magnitude = 0;
 		
-		public GreyoutCameraFilter() : this(true) {
-		}
-		
-		//In case actualEffect = false the filter is just a dummy 
-		public GreyoutCameraFilter(bool actualEffect)
-		{
-			if (actualEffect && material == null) {
+		//In case actualFilter = false the filter is just a dummy
+		public static GreyoutCameraFilter initializeCameraFilter(Camera camera, bool actualFilter) {
+			if (actualFilter && material == null) {
 				material = createMaterial("G-Effects/Greyout");
 			}
-		}
-		
-		public static GreyoutCameraFilter initializeCameraFilter(Camera camera, bool actualFilter) {
 			GreyoutCameraFilter filter;		
 			if (actualFilter) {
 				filter = camera.gameObject.GetComponent<GreyoutCameraFilter>();
@@ -35,7 +28,7 @@ namespace G_Effects
 					filter = camera.gameObject.AddComponent<GreyoutCameraFilter>();
 				}
 			} else {
-				filter = new GreyoutCameraFilter(false);
+				filter = new GreyoutCameraFilter();
 			}
 			return filter;
 		}

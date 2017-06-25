@@ -185,7 +185,8 @@ namespace G_Effects
 				if (controlSourcePart.CrewCapacity > 0) { //otherwise the vessel is controlled via probe core
 					//Find a crew member that most likely is controlling the vessel. So he is the one who sees the effects.
 					foreach (ProtoCrewMember crewMember in vessel.GetVesselCrew()) {
-						if (crewMember.seat.part.FindModuleImplementing<ModuleCommand>() != null) {
+						if (crewMember.seat == null //this is the case of a kerbal in an external seat
+							|| crewMember.seat.part.FindModuleImplementing<ModuleCommand>() != null) {
 							commander = bestCommander(commander, crewMember);
 						}
 						/*if (crewMember.seat.part.isControlSource == Vessel.ControlLevel.PARTIAL_MANNED ||

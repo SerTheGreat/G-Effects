@@ -15,7 +15,7 @@ namespace G_Effects
 		float gruntsVolume = 0;
 		float breathVolume = 0;
 		
-		GameObject audioPlayer = new GameObject();
+		GameObject audioPlayer;
 		AudioClip[] gruntClips;
 		AudioClip heartClip;
 		AudioClip[] breathClips;
@@ -36,6 +36,7 @@ namespace G_Effects
         Dictionary<AudioLowPassFilter, bool> filters = new Dictionary<AudioLowPassFilter, bool>();
         
 		public void initialize(float gruntsVolume, float breathVolume, float heartBeatsVolume, float femaleVoicePitch, float breathSoundPitch) {
+			audioPlayer = new GameObject();
 			this.breathSoundPitch = breathSoundPitch;
         	this.femaleVoicePitch = femaleVoicePitch;
 			this.gruntsVolume = gruntsVolume;
