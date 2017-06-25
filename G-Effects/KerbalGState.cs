@@ -78,7 +78,11 @@ namespace G_Effects
 		public float getSeverity() {
 			return (float)(Math.Abs(cumulativeG) / configuration.MAX_CUMULATIVE_G);
 		}
-		
-		
+
+		public float getSeverityWithThreshold(float threshold) {
+			float abs = (float)Math.Abs(cumulativeG);
+			return (float)(Mathf.Clamp(abs - threshold, 0, abs) / (configuration.MAX_CUMULATIVE_G - threshold));
+		}
+
 	}
 }

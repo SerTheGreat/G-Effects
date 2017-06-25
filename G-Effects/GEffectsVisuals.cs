@@ -54,40 +54,44 @@ namespace G_Effects
 		
 		public void drawGEffects(KerbalGState kerbalGData)
 		{
+			float severity = kerbalGData.getSeverityWithThreshold(2.0f * (float)conf.gResistance);
+			if (Math.Abs(severity) > 0.0001) {
+				//Apply positive or negative visual effect
+				if (kerbalGData.cumulativeG > 0) {
+					visualsColor = Color.black;
+					visualsColor.a = (float)(severity * 1.2);
+				} else {
+					visualsColor.r = conf.redoutRGB.r;
+					visualsColor.g = conf.redoutRGB.g;
+					visualsColor.b = conf.redoutRGB.b;
+					visualsColor.a = (float)(severity * 1.2);
+				}
 			
-			double severity = kerbalGData.getSeverity();
-			//Apply positive or negative visual effect
-			if (kerbalGData.cumulativeG > 0) {
-				visualsColor = Color.black;
-				visualsColor.a = (float)(severity * 1.2);
-			} else {
-				visualsColor.r = conf.redoutRGB.r;
-				visualsColor.g = conf.redoutRGB.g;
-				visualsColor.b = conf.redoutRGB.b;
-				visualsColor.a = (float)(severity * 1.2);
+				//We'll need to draw an additional solid texture over the blackout for intensification effect at the end
+				intensifierColor.r = visualsColor.r;
+				intensifierColor.g = visualsColor.g;
+				intensifierColor.b = visualsColor.b;
+				intensifierColor.a = (float)Math.Pow(severity, 4); //this will intensify blackout/redout effect at the very end
+			
+				intensifier.SetPixel(0, 0, intensifierColor);
+				intensifier.Apply();
+
+				GUI.color = visualsColor;
+				GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), blackoutTexture);
+				GUI.color = Color.white;
+				GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), intensifier);
 			}
-			
-			//We'll need to draw an additional solid texture over the blackout for intensification effect at the end
-			intensifierColor.r = visualsColor.r;
-			intensifierColor.g = visualsColor.g;
-			intensifierColor.b = visualsColor.b;
-			intensifierColor.a = (float)Math.Pow(severity, 4); //this will intensify blackout/redout effect at the very end
-			
-			intensifier.SetPixel(0, 0, intensifierColor);
-			intensifier.Apply();
-			
-			//The following will fade out in overlay whatever is diplayed if losing consciousness or fade in on wake up
-			gLocColor = Color.black;
-			gLocColor.a = (float)((kerbalGData.gLocFadeAmount * kerbalGData.gLocFadeAmount) / (G_Effects.MAX_GLOC_FADE * G_Effects.MAX_GLOC_FADE));
-			
-			gLocOverlay.SetPixel(0, 0, gLocColor);
-			gLocOverlay.Apply();
-			
-			GUI.color = visualsColor;
-			GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), blackoutTexture);
-			GUI.color = Color.white;
-			GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), intensifier);
-			GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), gLocOverlay);
+
+			if (kerbalGData.gLocFadeAmount > 0) {
+				//The following will fade out in overlay whatever is diplayed if losing consciousness or fade in on wake up
+				gLocColor = Color.black;
+				gLocColor.a = (float)((kerbalGData.gLocFadeAmount * kerbalGData.gLocFadeAmount) / (G_Effects.MAX_GLOC_FADE * G_Effects.MAX_GLOC_FADE));
+
+				gLocOverlay.SetPixel(0, 0, gLocColor);
+				gLocOverlay.Apply();
+
+				GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), gLocOverlay);
+			}
 		}
 		
 	}
