@@ -174,9 +174,9 @@ namespace G_Effects
 				return;
 			}
 			
-			if (!gAudio.isBoundToTransform()) {
+			/*if (!gAudio.isBoundToTransform()) {
 				gAudio.bindToTransform(FlightCamera.fetch.mainCamera.transform);
-			}
+			}*/
 			if (vessel.isEVA) {
 				commander = vessel.GetVesselCrew()[0];
 			} else {
